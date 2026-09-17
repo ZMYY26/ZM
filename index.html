@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>代码错题集 - 编程学习好帮手</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/atom-one-dark.min.css">
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/languages/javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/languages/python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/languages/cpp.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/languages/java.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/languages/c.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- 顶部标题栏 -->
+<header class="app-header">
+    <div class="header-left">
+        <button class="icon-btn" id="backBtn" style="display:none">←</button>
+    </div>
+    <h1 class="header-title" id="pageTitle">代码错题集</h1>
+    <div class="header-right">
+        <button class="icon-btn" id="searchBtn">🔍</button>
+    </div>
+</header>
+
+<!-- 主内容区 -->
+<main class="app-main" id="appMain">
+
+    <!-- 首页：错题列表 -->
+    <section class="page active" id="pageHome">
+        <div class="stats-bar">
+            <div class="stat-item">
+                <span class="stat-num" id="totalCount">0</span>
+                <span class="stat-label">总错题</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-num" id="reviewCount">0</span>
+                <span class="stat-label">待复习</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-num" id="masteredCount">0</span>
+                <span class="stat-label">已掌握</span>
+            </div>
+        </div>
+        <div class="filter-bar">
+            <select id="filterLang" class="filter-select">
+                <option value="">全部语言</option>
+                <option value="javascript">JavaScript</option>
+                <option value="python">Python</option>
+                <option value="cpp">C++</option>
+                <option value="java">Java</option>
+                <option value="c">C语言</option>
+            </select>
+            <select id="filterTag" class="filter-select">
+                <option value="">全部考点</option>
+            </select>
+            <select id="filterStatus" class="filter-select">
+                <option value="">全部状态</option>
+                <option value="pending">待复习</option>
+                <option value="reviewing">复习中</option>
+                <option value="mastered">已掌握</option>
+            </select>
+        </div>
+        <div class="mistake-list" id="mistakeList">
+            <div class="empty-state">
+                <div class="empty-icon">📝</div>
+                <p class="empty-text">还没有错题记录</p>
+                <p class="empty-hint">点击下方 + 按钮添加你的第一道错题</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 分类页 -->
+    <section class="page" id="pageCategory">
+        <div class="category-summary">
+            <h3>📚 按考点分类</h3>
+            <div class="tag-cloud" id="tagCloud">
+                <div class="empty-state">
+                    <p class="empty-text">暂无考点标签</p>
+                </div>
+            </div>
+        </div>
+        <div class="category-summary">
+            <h3>💻 按语言分类</h3>
+            <div class="lang-stats" id="langStats"></div>
+        </div>
+    </section>
+
+    <!-- 知识库页 -->
+    <section class="page" id="pageKnowledge">
+        <div class="knowledge-search-bar">
+            <input type="text" id="knowledgeSearch" class="knowledge-search-input" placeholder="🔍 搜索知识点，如：二叉树、TCP、索引、动态规划...">
+        </div>
+        <div class="knowledge-categories" id="knowledgeCategories">
+            <!-- 分类标签动态生成 -->
+        </div>
+        <div class="knowledge-list" id="knowledgeList">
+            <!-- 知识点列表动态生成 -->
+        </div>
+    </section>
+
+    <!-- 复习提醒页 -->
+    <section class="page" id="pageReview">
+        <div class="review-header">
+            <h3>⏰ 复习计划</h3>
+            <div class="review-tip">
+                <p>基于艾宾浩斯遗忘曲线，为你安排科学复习</p>
+            </div>
+        </div>
+        <div class="review-timeline" id="reviewTimeline">
+            <div class="empty-state">
+                <div class="empty-icon">✨</div>
+                <p class="empty-text">太棒了！今日无需复习</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 添加/编辑错题页 -->
+    <section class="page" id="pageEdit">
+        <form id="mistakeForm" class="edit-form">
+            <div class="form-group">
+                <label class="form-label">题目标题 *</label>
+                <input type="text" id="inputTitle" class="form-input" placeholder="例如：快速排序边界条件错误" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">编程语言 *</label>
+                <select id="inputLang" class="form-input" required>
+                    <option value="javascript">JavaScript</option>
+                    <option value="python">Python</option>
+                    <option value="cpp">C++</option>
+                    <option value="java">Java</option>
+                    <option value="c">C语言</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">题目描述</label>
+                <textarea id="inputDesc" class="form-input form-textarea" rows="3" placeholder="简单描述一下这道题目..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">错误代码 *</label>
+                <textarea id="inputWrongCode" class="form-input form-textarea code-input" rows="6" placeholder="粘贴你的错误代码..." required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">正确代码</label>
+                <textarea id="inputRightCode" class="form-input form-textarea code-input" rows="6" placeholder="粘贴正确的代码实现..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">📷 题目图片（可选）</label>
+                <div class="image-upload">
+                    <input type="file" id="inputImage" accept="image/*" capture="environment" hidden>
+                    <button type="button" class="upload-btn" id="uploadBtn">
+                        <span class="upload-icon">📷</span>
+                        <span>拍照/选择图片</span>
+                    </button>
+                    <div class="image-preview" id="imagePreview"></div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">考点标签（用逗号分隔多个）</label>
+                <input type="text" id="inputTags" class="form-input" placeholder="例如: 快速排序, 递归, 分治算法">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">错误分析 / 笔记</label>
+                <textarea id="inputNote" class="form-input form-textarea" rows="3" placeholder="记录一下为什么会错，下次要注意什么..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">来源</label>
+                <select id="inputSource" class="form-input">
+                    <option value="二级C">计算机二级</option>
+                    <option value="蓝桥杯">蓝桥杯</option>
+                    <option value="PAT">PAT</option>
+                    <option value="LeetCode">LeetCode</option>
+                    <option value="OJ">其他OJ</option>
+                    <option value="课堂">课堂练习</option>
+                    <option value="其他">其他</option>
+                </select>
+            </div>
+
+            <button type="submit" class="submit-btn">💾 保存错题</button>
+        </form>
+    </section>
+
+    <!-- 错题详情页 -->
+    <section class="page" id="pageDetail">
+        <div class="detail-container" id="detailContainer"></div>
+    </section>
+
+    <!-- 搜索弹窗 -->
+    <div class="modal-overlay" id="searchModal" style="display:none">
+        <div class="modal-content">
+            <div class="search-box">
+                <input type="text" id="searchInput" class="search-input" placeholder="搜索错题标题、标签、代码...">
+                <button class="icon-btn" id="closeSearch">✕</button>
+            </div>
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+
+    <!-- 知识详情弹窗 -->
+    <div class="modal-overlay" id="knowledgeModal" style="display:none">
+        <div class="modal-content knowledge-modal-content">
+            <div class="search-box">
+                <span id="knowledgeModalTitle" class="knowledge-modal-title">知识点详情</span>
+                <button class="icon-btn" id="closeKnowledgeModal" style="background:#eef2ff;color:#4f46e5">✕</button>
+            </div>
+            <div class="knowledge-detail" id="knowledgeDetail"></div>
+        </div>
+    </div>
+
+    <!-- 练习页面 -->
+    <section class="page" id="pagePractice">
+        <div class="practice-header">
+            <h3>✏️ 错题练习</h3>
+            <p>通过练习巩固知识点，举一反三</p>
+        </div>
+        <div class="practice-stats">
+            <div class="practice-stat-item">
+                <span class="practice-stat-num" id="practiceDone">0</span>
+                <span class="practice-stat-label">已做</span>
+            </div>
+            <div class="practice-stat-item">
+                <span class="practice-stat-num" id="practiceCorrect">0</span>
+                <span class="practice-stat-label">正确</span>
+            </div>
+            <div class="practice-stat-item">
+                <span class="practice-stat-num" id="practiceRate">0%</span>
+                <span class="practice-stat-label">正确率</span>
+            </div>
+        </div>
+        <div class="practice-filter">
+            <button class="practice-cat-btn active" data-cat="">全部</button>
+            <button class="practice-cat-btn" data-cat="数据结构">数据结构</button>
+            <button class="practice-cat-btn" data-cat="算法">算法</button>
+            <button class="practice-cat-btn" data-cat="操作系统">操作系统</button>
+            <button class="practice-cat-btn" data-cat="计算机网络">网络</button>
+            <button class="practice-cat-btn" data-cat="数据库">数据库</button>
+            <button class="practice-cat-btn" data-cat="软件工程">软工</button>
+            <button class="practice-cat-btn" data-cat="计算机组成">组成</button>
+        </div>
+        <div class="practice-list" id="practiceList"></div>
+    </section>
+
+    <!-- 答题弹窗 -->
+    <div class="modal-overlay" id="practiceModal" style="display:none">
+        <div class="modal-content practice-modal-content">
+            <div class="practice-quiz-header">
+                <span id="practiceModalTitle" class="knowledge-modal-title">答题</span>
+                <button class="icon-btn" id="closePracticeModal" style="background:#eef2ff;color:#4f46e5">✕</button>
+            </div>
+            <div class="practice-quiz" id="practiceQuiz"></div>
+        </div>
+    </div>
+</main>
+
+<!-- 悬浮添加按钮 -->
+<button class="fab-btn" id="fabAdd">+</button>
+
+<!-- 底部 Tab 栏 -->
+<nav class="bottom-nav">
+    <button class="nav-item active" data-page="pageHome">
+        <span class="nav-icon">📖</span>
+        <span class="nav-label">错题本</span>
+    </button>
+    <button class="nav-item" data-page="pageCategory">
+        <span class="nav-icon">🏷️</span>
+        <span class="nav-label">分类</span>
+    </button>
+    <button class="nav-item" data-page="pageKnowledge">
+        <span class="nav-icon">🧠</span>
+        <span class="nav-label">知识库</span>
+    </button>
+    <button class="nav-item" data-page="pagePractice">
+        <span class="nav-icon">✏️</span>
+        <span class="nav-label">练习</span>
+    </button>
+    <button class="nav-item" data-page="pageReview">
+        <span class="nav-icon">⏰</span>
+        <span class="nav-label">复习</span>
+        <span class="nav-badge" id="reviewBadge" style="display:none">0</span>
+    </button>
+</nav>
+
+<!-- Toast 提示 -->
+<div class="toast" id="toast"></div>
+
+<script src="practice-data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
