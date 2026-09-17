@@ -246,6 +246,7 @@
             <button class="practice-cat-btn" data-cat="数据库">数据库</button>
             <button class="practice-cat-btn" data-cat="软件工程">软工</button>
             <button class="practice-cat-btn" data-cat="计算机组成">组成</button>
+            <button class="practice-cat-btn ai-cat-btn" data-cat="AI变式">🤖 AI变式</button>
         </div>
         <div class="practice-list" id="practiceList"></div>
     </section>
@@ -258,6 +259,55 @@
                 <button class="icon-btn" id="closePracticeModal" style="background:#eef2ff;color:#4f46e5">✕</button>
             </div>
             <div class="practice-quiz" id="practiceQuiz"></div>
+        </div>
+    </div>
+
+    <!-- AI 举一反三弹窗 -->
+    <div class="modal-overlay" id="aiModal" style="display:none">
+        <div class="modal-content ai-modal-content">
+            <div class="practice-quiz-header ai-modal-header">
+                <span id="aiModalTitle" class="knowledge-modal-title">🤖 AI 举一反三</span>
+                <div class="ai-header-actions">
+                    <button class="ai-link-btn" id="openAISettingsBtn">⚙️ 配置</button>
+                    <button class="icon-btn" id="closeAIModal" style="background:#eef2ff;color:#4f46e5">✕</button>
+                </div>
+            </div>
+            <div class="ai-body" id="aiBody"></div>
+        </div>
+    </div>
+
+    <!-- AI 配置弹窗 -->
+    <div class="modal-overlay" id="aiSettingsModal" style="display:none">
+        <div class="modal-content ai-settings-content">
+            <div class="practice-quiz-header">
+                <span class="knowledge-modal-title">⚙️ AI 配置</span>
+                <button class="icon-btn" id="closeAISettings" style="background:#eef2ff;color:#4f46e5">✕</button>
+            </div>
+            <div class="ai-settings-body">
+                <div class="ai-settings-tip">
+                    支持 OpenAI 兼容接口（DeepSeek、智谱、通义、OpenAI 等）。Key 仅保存在本机 localStorage，不会上传。
+                </div>
+                <div class="form-group">
+                    <label class="form-label">API Base URL</label>
+                    <input type="text" id="aiBaseURL" class="form-input" placeholder="https://api.deepseek.com/v1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">API Key</label>
+                    <input type="password" id="aiApiKey" class="form-input" placeholder="sk-...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">模型名称</label>
+                    <input type="text" id="aiModel" class="form-input" placeholder="deepseek-chat">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">出题数量</label>
+                    <input type="number" id="aiCount" class="form-input" min="1" max="6" value="3">
+                </div>
+                <div class="ai-settings-actions">
+                    <button class="practice-quiz-btn practice-quiz-btn-secondary" id="cancelAISettings">取消</button>
+                    <button class="practice-quiz-btn practice-quiz-btn-primary" id="saveAISettings">💾 保存</button>
+                </div>
+            </div>
         </div>
     </div>
 </main>

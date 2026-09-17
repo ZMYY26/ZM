@@ -687,6 +687,7 @@ function renderDetail(m) {
             </div>
         ` : ''}
 
+        <button class="ai-gen-btn" onclick="openAIModal('${m.id}')">🤖 AI 举一反三</button>
         <div class="detail-footer">
             ${m.status !== 'mastered' ? `
                 <button class="action-btn success" onclick="markMastered('${m.id}')">✓ 已掌握</button>
@@ -1027,6 +1028,22 @@ function init() {
     // 练习模块
     bindPracticeEvents();
 
+    // 加载 AI 配置
+    loadAIConfig();
+
+    // AI 举一反三弹窗事件
+    $('closeAIModal').addEventListener('click', closeAIModal);
+    $('aiModal').addEventListener('click', (e) => {
+        if (e.target.id === 'aiModal') closeAIModal();
+    });
+    $('openAISettingsBtn').addEventListener('click', openAISettings);
+    $('closeAISettings').addEventListener('click', closeAISettings);
+    $('cancelAISettings').addEventListener('click', closeAISettings);
+    $('saveAISettings').addEventListener('click', handleSaveAISettings);
+    $('aiSettingsModal').addEventListener('click', (e) => {
+        if (e.target.id === 'aiSettingsModal') closeAISettings();
+    });
+
     // 筛选
     bindFilterEvents();
 
@@ -1046,6 +1063,12 @@ function init() {
             }
             if ($('practiceModal').style.display !== 'none') {
                 closePracticeModal();
+            }
+            if ($('aiModal').style.display !== 'none') {
+                closeAIModal();
+            }
+            if ($('aiSettingsModal').style.display !== 'none') {
+                closeAISettings();
             }
         }
     });
@@ -1249,7 +1272,7 @@ function renderPracticeList() {
     const listEl = $('practiceList');
     if (!listEl) return;
 
-    let questions = (typeof PRACTICE_QUESTIONS !== 'undefined') ? PRACTICE_QUESTIONS : [];
+    let questions = getAllPracticeQuestions();
     if (practiceActiveCategory) {
         questions = questions.filter(q => q.category === practiceActiveCategory);
     }
@@ -1289,7 +1312,7 @@ function renderPracticeList() {
 
 // ========== 答题弹窗 ==========
 function openPracticeQuestion(qid) {
-    const q = (typeof PRACTICE_QUESTIONS !== 'undefined' ? PRACTICE_QUESTIONS : []).find(x => x.id === qid);
+    const q = getAllPracticeQuestions().find(x => x.id === qid);
     if (!q) {
         showToast('题目不存在');
         return;
@@ -1347,7 +1370,7 @@ function renderPracticeQuestion() {
     let relatedHtml = '';
     if (answered && q.related && q.related.length > 0) {
         const relatedQuestions = q.related
-            .map(rid => (typeof PRACTICE_QUESTIONS !== 'undefined' ? PRACTICE_QUESTIONS : []).find(x => x.id === rid))
+            .map(rid => getAllPracticeQuestions().find(x => x.id === rid))
             .filter(Boolean);
 
         if (relatedQuestions.length > 0) {
@@ -1444,7 +1467,7 @@ function nextPracticeQuestion() {
     // 1. 优先推荐相关题中"未做"或"未掌握"的
     if (q.related && q.related.length > 0) {
         const candidates = q.related
-            .map(rid => (typeof PRACTICE_QUESTIONS !== 'undefined' ? PRACTICE_QUESTIONS : []).find(x => x.id === rid))
+            .map(rid => getAllPracticeQuestions().find(x => x.id === rid))
             .filter(Boolean)
             .filter(rq => {
                 const r = practiceRecords[rq.id];
@@ -1457,7 +1480,7 @@ function nextPracticeQuestion() {
 
     // 2. 退而求其次：从同分类下找未做或未掌握的题
     if (!nextQ) {
-        const all = typeof PRACTICE_QUESTIONS !== 'undefined' ? PRACTICE_QUESTIONS : [];
+        const all = getAllPracticeQuestions();
         const sameCategory = all.filter(x => x.category === q.category && x.id !== q.id);
         const candidates = sameCategory.filter(rq => {
             const r = practiceRecords[rq.id];
@@ -1472,7 +1495,7 @@ function nextPracticeQuestion() {
 
     // 3. 再退一步：从全题库中找未做/未掌握的
     if (!nextQ) {
-        const all = typeof PRACTICE_QUESTIONS !== 'undefined' ? PRACTICE_QUESTIONS : [];
+        const all = getAllPracticeQuestions();
         const candidates = all.filter(rq => {
             const r = practiceRecords[rq.id];
             return !r || !r.done || !r.correct;
@@ -1493,6 +1516,449 @@ function nextPracticeQuestion() {
 
 function jumpToPracticeQuestion(qid) {
     openPracticeQuestion(qid);
+}
+
+/* ========================================
+ * AI 举一反三模块 - 基于错题生成变式题
+ * ======================================== */
+
+// ========== AI 配置与状态 ==========
+const AI_CONFIG_KEY = 'ai_config_v1';
+const AI_QUESTIONS_KEY = 'ai_generated_questions_v1';
+
+let aiConfig = { baseURL: '', apiKey: '', model: '', count: 3 };
+let aiCurrentMistake = null;        // 当前作为出题依据的错题
+let aiGeneratedQuestions = [];      // 本轮生成的题目（临时）
+let aiAnswerState = {};             // { qid: { selected, answered } }
+
+// 加载/保存 AI 配置
+function loadAIConfig() {
+    try {
+        const data = localStorage.getItem(AI_CONFIG_KEY);
+        aiConfig = data ? { ...aiConfig, ...JSON.parse(data) } : aiConfig;
+    } catch (e) { console.error('加载AI配置失败:', e); }
+}
+function saveAIConfig() {
+    try { localStorage.setItem(AI_CONFIG_KEY, JSON.stringify(aiConfig)); } catch (e) {}
+}
+
+// 加载/保存 AI 生成题库（持久化为练习题）
+function loadAIQuestions() {
+    try {
+        const data = localStorage.getItem(AI_QUESTIONS_KEY);
+        return data ? JSON.parse(data) : [];
+    } catch (e) { return []; }
+}
+function saveAIQuestion(q) {
+    const list = loadAIQuestions();
+    // 避免重复 id
+    if (!list.some(x => x.id === q.id)) {
+        list.push(q);
+        try { localStorage.setItem(AI_QUESTIONS_KEY, JSON.stringify(list)); } catch (e) {}
+    }
+}
+
+// 统一获取所有练习题（内置 + AI 生成）
+function getAllPracticeQuestions() {
+    const builtin = (typeof PRACTICE_QUESTIONS !== 'undefined') ? PRACTICE_QUESTIONS : [];
+    return [...builtin, ...loadAIQuestions()];
+}
+
+// ========== 打开/关闭弹窗 ==========
+function openAIModal(mistakeId) {
+    const m = mistakes.find(x => x.id === mistakeId);
+    if (!m) { showToast('错题不存在'); return; }
+
+    aiCurrentMistake = m;
+    aiGeneratedQuestions = [];
+    aiAnswerState = {};
+
+    $('aiModalTitle').textContent = '🤖 AI 举一反三 · ' + (m.title || '').slice(0, 16);
+    $('aiModal').style.display = 'flex';
+
+    if (!aiConfig.apiKey || !aiConfig.baseURL || !aiConfig.model) {
+        renderAIBody({ type: 'no-config' });
+    } else {
+        generateAIQuestions();
+    }
+}
+
+function closeAIModal() {
+    $('aiModal').style.display = 'none';
+    aiCurrentMistake = null;
+    aiGeneratedQuestions = [];
+    aiAnswerState = {};
+}
+
+// ========== AI 配置弹窗 ==========
+function openAISettings() {
+    loadAIConfig();
+    $('aiBaseURL').value = aiConfig.baseURL || '';
+    $('aiApiKey').value = aiConfig.apiKey || '';
+    $('aiModel').value = aiConfig.model || '';
+    $('aiCount').value = aiConfig.count || 3;
+    $('aiSettingsModal').style.display = 'flex';
+}
+function closeAISettings() {
+    $('aiSettingsModal').style.display = 'none';
+}
+function handleSaveAISettings() {
+    const baseURL = $('aiBaseURL').value.trim().replace(/\/+$/, '');
+    const apiKey = $('aiApiKey').value.trim();
+    const model = $('aiModel').value.trim();
+    const count = Math.max(1, Math.min(6, parseInt($('aiCount').value) || 3));
+
+    if (!baseURL || !apiKey || !model) {
+        showToast('请填写完整配置');
+        return;
+    }
+
+    aiConfig = { baseURL, apiKey, model, count };
+    saveAIConfig();
+    closeAISettings();
+    showToast('配置已保存');
+    // 若 AI 弹窗处于"未配置"态，保存后自动开始出题
+    if (aiCurrentMistake && aiGeneratedQuestions.length === 0) {
+        generateAIQuestions();
+    }
+}
+
+// ========== 提示词构造 ==========
+function buildAIPrompt(m) {
+    const langName = getLangName(m.lang);
+    const tags = (m.tags || []).join('、') || '综合';
+    const count = aiConfig.count || 3;
+
+    const wrongCode = (m.wrongCode || '').trim() || '（无）';
+    const rightCode = (m.rightCode || '').trim() || '（无）';
+    const note = (m.note || '').trim() || '（无）';
+
+    return `你是一位资深的编程教学专家。下面是一道学生的错题，请基于其考点生成 ${count} 道难度递进的"变式选择题"，帮助学生举一反三。
+
+【原错题】
+- 标题：${m.title || ''}
+- 语言：${langName}
+- 考点标签：${tags}
+- 错误代码：
+\`\`\`
+${wrongCode}
+\`\`\`
+- 正确代码：
+\`\`\`
+${rightCode}
+\`\`\`
+- 错误分析：${note}
+
+【生成要求】
+1. 围绕上述考点出题，避免与原题完全重复，可以从相关概念、易混点、变形场景切入。
+2. 每题必须是 4 选 1 的选择题，4 个选项长度相近、干扰项合理。
+3. 每题给出正确答案（0-3 的整数下标）和简短解析（一句话点明关键）。
+4. 每题标注 difficulty（1=基础、2=进阶、3=挑战）和 topic（知识点名）。
+5. 严格输出 JSON，禁止任何解释性文字。格式：
+{
+  "questions": [
+    {
+      "topic": "知识点名",
+      "difficulty": 1,
+      "question": "题干",
+      "options": ["选项A", "选项B", "选项C", "选项D"],
+      "answer": 0,
+      "explanation": "解析"
+    }
+  ]
+}`;
+}
+
+// ========== 调用 LLM ==========
+async function callLLM(prompt) {
+    const url = aiConfig.baseURL.replace(/\/+$/, '') + '/chat/completions';
+    const body = {
+        model: aiConfig.model,
+        messages: [
+            { role: 'system', content: '你是一位严谨的编程教学专家，只输出严格 JSON。' },
+            { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+        response_format: { type: 'json_object' }
+    };
+
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + aiConfig.apiKey
+        },
+        body: JSON.stringify(body)
+    });
+
+    if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        throw new Error('HTTP ' + resp.status + (text ? (': ' + text.slice(0, 200)) : ''));
+    }
+
+    const data = await resp.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error('LLM 返回为空');
+    return content;
+}
+
+// ========== 解析 LLM 输出 ==========
+function parseAIQuestions(content) {
+    // 容错：尝试提取第一个 JSON 对象
+    let text = content.trim();
+    if (text.startsWith('```')) {
+        text = text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '');
+    }
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+        text = text.slice(start, end + 1);
+    }
+    const obj = JSON.parse(text);
+    let list = obj.questions || obj.data || obj;
+    if (!Array.isArray(list)) throw new Error('LLM 返回格式不正确');
+
+    return list.map((q, idx) => {
+        const options = Array.isArray(q.options) ? q.options.map(String) : [];
+        if (options.length < 2) throw new Error('选项数不足');
+        let answer = Number(q.answer);
+        if (!Number.isInteger(answer) || answer < 0 || answer >= options.length) {
+            answer = 0;
+        }
+        return {
+            id: 'ai_' + Date.now().toString(36) + '_' + idx,
+            category: 'AI变式',
+            topic: String(q.topic || aiCurrentMistake?.tags?.[0] || '综合'),
+            difficulty: Math.max(1, Math.min(3, Number(q.difficulty) || 1)),
+            type: 'choice',
+            question: String(q.question || ''),
+            options,
+            answer,
+            explanation: String(q.explanation || ''),
+            related: [],
+            sourceMistakeId: aiCurrentMistake ? aiCurrentMistake.id : null,
+            createdAt: Date.now()
+        };
+    });
+}
+
+// ========== 主流程：生成题目 ==========
+async function generateAIQuestions() {
+    if (!aiCurrentMistake) return;
+
+    aiGeneratedQuestions = [];
+    aiAnswerState = {};
+    renderAIBody({ type: 'loading' });
+
+    // 最小加载时间 800ms，避免 DNS 失败太快导致 spinner 一闪而过
+    const minLoading = new Promise(r => setTimeout(r, 800));
+
+    try {
+        const prompt = buildAIPrompt(aiCurrentMistake);
+        const [content] = await Promise.all([callLLM(prompt), minLoading]);
+        const questions = parseAIQuestions(content);
+
+        if (questions.length === 0) throw new Error('未生成任何题目');
+
+        aiGeneratedQuestions = questions;
+        questions.forEach(q => { aiAnswerState[q.id] = { selected: -1, answered: false }; });
+        renderAIBody({ type: 'success', questions });
+    } catch (e) {
+        await minLoading;
+        console.error('AI 出题失败:', e);
+        renderAIBody({ type: 'error', message: e.message || '未知错误' });
+    }
+}
+
+// ========== 渲染 AI 弹窗内容 ==========
+function renderAIBody(state) {
+    const body = $('aiBody');
+    if (!body) return;
+
+    if (state.type === 'no-config') {
+        body.innerHTML = `
+            <div class="ai-empty">
+                <div class="ai-empty-icon">⚙️</div>
+                <p class="ai-empty-title">尚未配置 AI</p>
+                <p class="ai-empty-hint">请先填写 API 地址、Key 和模型名，再开始出题</p>
+                <button class="practice-quiz-btn practice-quiz-btn-primary" style="max-width:200px;margin:12px auto 0" onclick="openAISettings()">⚙️ 立即配置</button>
+            </div>
+        `;
+        return;
+    }
+
+    if (state.type === 'loading') {
+        body.innerHTML = `
+            <div class="ai-loading">
+                <div class="ai-spinner"></div>
+                <p>AI 正在为你举一反三…</p>
+                <p class="ai-loading-hint">基于「${escapeHtml(aiCurrentMistake?.title || '').slice(0, 30)}」生成变式题</p>
+            </div>
+        `;
+        return;
+    }
+
+    if (state.type === 'error') {
+        body.innerHTML = `
+            <div class="ai-empty">
+                <div class="ai-empty-icon">⚠️</div>
+                <p class="ai-empty-title">出题失败</p>
+                <p class="ai-empty-hint">${escapeHtml(state.message)}</p>
+                <div class="ai-empty-actions">
+                    <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="closeAIModal()">关闭</button>
+                    <button class="practice-quiz-btn practice-quiz-btn-primary" onclick="generateAIQuestions()">重试</button>
+                    <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="openAISettings()">⚙️ 配置</button>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    if (state.type === 'success') {
+        const cardsHtml = state.questions.map(q => renderAIQuestionCard(q)).join('');
+        body.innerHTML = `
+            <div class="ai-summary">
+                <span>✅ 已生成 ${state.questions.length} 道变式题</span>
+                <button class="ai-link-btn" onclick="generateAIQuestions()">🔄 再来一轮</button>
+            </div>
+            <div class="ai-question-list">${cardsHtml}</div>
+            <div class="ai-batch-actions">
+                <button class="practice-quiz-btn practice-quiz-btn-primary" onclick="addAllAIToPractice()">📚 全部加入练习库</button>
+            </div>
+        `;
+    }
+}
+
+function renderAIQuestionCard(q) {
+    const stars = '★'.repeat(q.difficulty) + '☆'.repeat(3 - q.difficulty);
+    const state = aiAnswerState[q.id] || { selected: -1, answered: false };
+
+    const optionsHtml = q.options.map((opt, idx) => {
+        let cls = 'practice-quiz-option';
+        if (state.answered) {
+            if (idx === q.answer) cls += ' correct-answer';
+            else if (idx === state.selected) cls += ' wrong-answer';
+        } else if (idx === state.selected) {
+            cls += ' selected';
+        }
+        return `<button class="${cls}" onclick="selectAIOption('${q.id}', ${idx})">${String.fromCharCode(65 + idx)}. ${escapeHtml(opt)}</button>`;
+    }).join('');
+
+    let explanationHtml = '';
+    if (state.answered) {
+        explanationHtml = `
+            <div class="practice-quiz-explanation">
+                <div class="practice-quiz-explanation-title">${state.selected === q.answer ? '✅ 回答正确' : '❌ 回答错误'}</div>
+                <div>正确答案：${String.fromCharCode(65 + q.answer)}. ${escapeHtml(q.options[q.answer])}</div>
+                <div style="margin-top:6px;">💡 ${escapeHtml(q.explanation || '')}</div>
+            </div>
+        `;
+    }
+
+    let actionsHtml = '';
+    if (state.answered) {
+        actionsHtml = `
+            <div class="ai-card-actions">
+                <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="addAIToPractice('${q.id}')">📚 加入练习库</button>
+                <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="addAIToMistake('${q.id}')">📝 加入错题本</button>
+            </div>
+        `;
+    } else {
+        actionsHtml = `
+            <div class="ai-card-actions">
+                <button class="practice-quiz-btn practice-quiz-btn-primary" onclick="submitAIAnswer('${q.id}')" ${state.selected < 0 ? 'disabled style="opacity:0.5;cursor:not-allowed"' : ''}>提交答案</button>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="ai-question-card" data-qid="${q.id}">
+            <div class="ai-card-meta">
+                <span class="practice-card-category">${escapeHtml(q.topic || '综合')}</span>
+                <span class="practice-card-difficulty">${stars}</span>
+            </div>
+            <div class="ai-card-question">${escapeHtml(q.question)}</div>
+            <div class="practice-quiz-options">${optionsHtml}</div>
+            ${explanationHtml}
+            ${actionsHtml}
+        </div>
+    `;
+}
+
+// ========== 答题交互 ==========
+function selectAIOption(qid, idx) {
+    const state = aiAnswerState[qid];
+    if (!state || state.answered) return;
+    state.selected = idx;
+    refreshAICard(qid);
+}
+
+function submitAIAnswer(qid) {
+    const state = aiAnswerState[qid];
+    const q = aiGeneratedQuestions.find(x => x.id === qid);
+    if (!state || !q || state.answered) return;
+    if (state.selected < 0) { showToast('请先选择一个答案'); return; }
+
+    state.answered = true;
+    refreshAICard(qid);
+    showToast(state.selected === q.answer ? '回答正确！' : '回答错误，看下解析');
+}
+
+// 局部刷新单张题卡，避免滚动跳回顶部
+function refreshAICard(qid) {
+    const q = aiGeneratedQuestions.find(x => x.id === qid);
+    if (!q) return;
+    const wrapper = document.querySelector(`.ai-question-card[data-qid="${qid}"]`);
+    // 找不到容器则全量刷新
+    if (wrapper) {
+        const newHtml = renderAIQuestionCard(q);
+        const tmp = document.createElement('div');
+        tmp.innerHTML = newHtml;
+        wrapper.replaceWith(tmp.firstElementChild);
+    } else {
+        const list = document.querySelector('.ai-question-list');
+        if (list) {
+            list.innerHTML = aiGeneratedQuestions.map(renderAIQuestionCard).join('');
+        }
+    }
+}
+
+// ========== 把生成的题加入练习库 / 错题本 ==========
+function addAIToPractice(qid) {
+    const q = aiGeneratedQuestions.find(x => x.id === qid);
+    if (!q) return;
+    saveAIQuestion(q);
+    showToast('已加入练习库（AI变式分类）');
+}
+
+function addAllAIToPractice() {
+    if (aiGeneratedQuestions.length === 0) return;
+    aiGeneratedQuestions.forEach(saveAIQuestion);
+    showToast(`已批量加入 ${aiGeneratedQuestions.length} 道到练习库`);
+}
+
+function addAIToMistake(qid) {
+    const q = aiGeneratedQuestions.find(x => x.id === qid);
+    if (!q) return;
+    const newMistake = {
+        id: generateId(),
+        title: '【AI变式】' + (q.topic || '综合') + ' - ' + (q.question || '').slice(0, 20),
+        lang: (aiCurrentMistake && aiCurrentMistake.lang) || 'javascript',
+        desc: q.question,
+        wrongCode: '',
+        rightCode: '',
+        tags: [q.topic || 'AI变式', '举一反三'],
+        note: `正确答案：${String.fromCharCode(65 + q.answer)}. ${q.options[q.answer]}\n解析：${q.explanation || ''}`,
+        source: 'AI出题',
+        image: null,
+        status: 'pending',
+        reviewCount: 0,
+        lastReviewAt: Date.now(),
+        createdAt: Date.now()
+    };
+    mistakes.push(newMistake);
+    saveData();
+    showToast('已加入错题本');
 }
 
 // 启动应用

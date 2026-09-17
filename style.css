@@ -1645,3 +1645,263 @@ body {
     color: var(--text-secondary);
     font-size: 14px;
 }
+
+/* ========== AI 举一反三模块 ========== */
+
+/* 详情页"AI 出题"按钮 */
+.ai-gen-btn {
+    width: 100%;
+    padding: 12px;
+    margin: 14px 0;
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+}
+
+.ai-gen-btn:active {
+    transform: scale(0.98);
+    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+}
+
+/* AI 弹窗 */
+.ai-modal-content,
+.ai-settings-content {
+    max-width: 480px;
+    width: 100%;
+    max-height: 88vh;
+    overflow-y: auto;
+    border-radius: var(--radius);
+    margin-top: 8vh;
+}
+
+.ai-modal-header {
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: white;
+}
+
+.ai-modal-header .knowledge-modal-title {
+    color: white;
+}
+
+.ai-modal-header .icon-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.ai-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ai-link-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 14px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.ai-link-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* 弹窗正文区 */
+.ai-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* 空状态 / 错误状态 */
+.ai-empty {
+    text-align: center;
+    padding: 36px 20px;
+}
+
+.ai-empty-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+}
+
+.ai-empty-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+}
+
+.ai-empty-hint {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    word-break: break-all;
+}
+
+.ai-empty-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 14px;
+    flex-wrap: wrap;
+}
+
+.ai-empty-actions .practice-quiz-btn {
+    flex: 0 0 auto;
+    min-width: 80px;
+    max-width: 140px;
+}
+
+/* 加载状态 */
+.ai-loading {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text-secondary);
+}
+
+.ai-spinner {
+    width: 44px;
+    height: 44px;
+    border: 4px solid #e0e7ff;
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    margin: 0 auto 16px;
+    animation: ai-spin 0.9s linear infinite;
+}
+
+@keyframes ai-spin {
+    to { transform: rotate(360deg); }
+}
+
+.ai-loading p {
+    font-size: 14px;
+}
+
+.ai-loading-hint {
+    font-size: 12px !important;
+    color: #9ca3af;
+    margin-top: 4px;
+}
+
+/* 成功 - 顶部摘要条 */
+.ai-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: #eef2ff;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--primary-dark);
+    font-weight: 500;
+}
+
+.ai-summary .ai-link-btn {
+    background: white;
+    color: var(--primary);
+    border: 1px solid #c7d2fe;
+}
+
+/* 题目卡片列表 */
+.ai-question-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ai-question-card {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid #a855f7;
+}
+
+.ai-card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.ai-card-question {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+
+.ai-question-card .practice-quiz-options {
+    margin-bottom: 12px;
+}
+
+.ai-card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.ai-card-actions .practice-quiz-btn {
+    flex: 1;
+}
+
+/* 批量操作 */
+.ai-batch-actions {
+    display: flex;
+    justify-content: center;
+    padding-top: 4px;
+}
+
+.ai-batch-actions .practice-quiz-btn {
+    flex: 1;
+}
+
+/* AI 设置弹窗 */
+.ai-settings-body {
+    padding: 16px;
+}
+
+.ai-settings-tip {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    padding: 10px 12px;
+    background: #f0fdf4;
+    border-radius: 8px;
+    border-left: 3px solid var(--success);
+    margin-bottom: 14px;
+}
+
+.ai-settings-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.ai-settings-actions .practice-quiz-btn {
+    flex: 1;
+}
+
+/* 练习页"AI变式"分类按钮 */
+.practice-cat-btn.ai-cat-btn {
+    background: linear-gradient(135deg, #eef2ff, #faf5ff);
+    color: #6366f1;
+    border-color: #c7d2fe;
+}
+
+.practice-cat-btn.ai-cat-btn.active {
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: white;
+    border-color: transparent;
+}
