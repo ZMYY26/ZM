@@ -674,9 +674,13 @@ function renderDetail(m) {
             <div class="detail-section">
                 <div class="detail-section-title">✅ 正确代码</div>
                 <div class="code-block">
-                    <div class="code-block-header right">正确实现</div>
+                    <div class="code-block-header right">
+                        <span>正确实现</span>
+                        ${isRunnableLang(m.lang) ? `<button class="run-btn" id="runBtn-${m.id}" onclick="runMistakeCode('${m.id}')">▶ 运行</button>` : ''}
+                    </div>
                     <pre><code class="hljs language-${m.lang}">${rightCodeHtml}</code></pre>
                 </div>
+                ${isRunnableLang(m.lang) ? `<div class="code-output" id="output-${m.id}" style="display:none"></div>` : ''}
             </div>
         ` : ''}
 
@@ -2090,3 +2094,191 @@ function addAIToMistake(qid) {
 
 // 启动应用
 document.addEventListener('DOMContentLoaded', init);
+
+/* ========================================
+ * 浏览器内运行代码模块
+ *   - JS：受限 eval 沙箱，捕获 console.log / error
+ *   - Python：动态加载 Pyodide CDN 后运行
+ * ======================================== */
+
+const RUNNABLE_LANGS = ['javascript', 'js', 'python', 'py'];
+let pyodidePromise = null;   // 复用 Pyodide 加载 Promise
+
+function isRunnableLang(lang) {
+    if (!lang) return false;
+    return RUNNABLE_LANGS.includes(String(lang).toLowerCase());
+}
+
+function getLangKey(lang) {
+    const l = String(lang || '').toLowerCase();
+    if (l === 'js') return 'javascript';
+    if (l === 'py') return 'python';
+    return l;
+}
+
+// 主入口
+async function runMistakeCode(id) {
+    const m = mistakes.find(x => x.id === id);
+    if (!m || !m.rightCode) { showToast('没有可运行的代码'); return; }
+
+    const lang = getLangKey(m.lang);
+    const outEl = $('output-' + id);
+    const btn = $('runBtn-' + id);
+    if (!outEl) return;
+
+    // 进入运行中态
+    outEl.style.display = 'block';
+    outEl.className = 'code-output loading';
+    outEl.innerHTML = '<span class="run-spinner"></span> 运行中…';
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ 运行中'; }
+
+    try {
+        let result;
+        if (lang === 'javascript') {
+            result = runJS(m.rightCode);
+        } else if (lang === 'python') {
+            result = await runPython(m.rightCode);
+        } else {
+            throw new Error('暂不支持运行 ' + m.lang + ' 代码');
+        }
+        showRunOutput(outEl, result, btn);
+    } catch (e) {
+        outEl.className = 'code-output error';
+        outEl.innerHTML = '<div class="run-line run-err">❌ 运行失败：' + escapeHtml(e.message || String(e)) + '</div>';
+        if (btn) { btn.disabled = false; btn.textContent = '▶ 运行'; }
+    }
+}
+
+function showRunOutput(outEl, result, btn) {
+    outEl.className = 'code-output' + (result.hasError ? ' error' : '');
+    let html = '<div class="run-out-title">' + (result.hasError ? '⚠️ 输出（含错误）' : '✅ 输出') + '</div>';
+    if (result.stdout) {
+        html += '<pre class="run-stdout">' + escapeHtml(result.stdout) + '</pre>';
+    }
+    if (result.stderr) {
+        html += '<pre class="run-stderr">' + escapeHtml(result.stderr) + '</pre>';
+    }
+    if (!result.stdout && !result.stderr && !result.hasError) {
+        html += '<div class="run-empty">（程序没有输出）</div>';
+    }
+    outEl.innerHTML = html;
+    if (btn) { btn.disabled = false; btn.textContent = '▶ 运行'; }
+}
+
+// ========== JavaScript：受限 eval 沙箱 ==========
+function runJS(code) {
+    const logs = [];
+    const errBuf = [];
+
+    // 构造一个假 console，捕获所有 log/info/warn/error
+    const fakeConsole = {};
+    ['log', 'info', 'warn', 'error'].forEach(level => {
+        fakeConsole[level] = (...args) => {
+            logs.push(args.map(fmtArg).join(' '));
+        };
+    });
+
+    const stdout = [];
+    const fakeStdout = {
+        write: (s) => { stdout.push(String(s)); }
+    };
+
+    // 受限的全局对象：仅暴露必要 API，禁用 fetch/eval/Function/LocalStorage 等
+    const sandbox = {
+        console: fakeConsole,
+        process: { stdout: fakeStdout, stderr: { write: s => errBuf.push(String(s)) } },
+        Math, Date, JSON, Array, Object, String, Number, Boolean, RegExp, Map, Set, WeakMap, WeakSet, Promise, Symbol, BigInt, Error, TypeError, RangeError, SyntaxError, Reflect, Proxy, structuredClone: (typeof structuredClone === 'function') ? structuredClone : undefined,
+        setTimeout: (cb, t) => setTimeout(cb, Math.min(t || 0, 1000)),
+        parseInt, parseFloat, isNaN, isFinite, encodeURIComponent, decodeURIComponent,
+    };
+    // 删掉未定义字段
+    Object.keys(sandbox).forEach(k => { if (sandbox[k] === undefined) delete sandbox[k]; });
+
+    let hasError = false;
+    let stderr = '';
+
+    try {
+        // 用 Function 构造隔离作用域，避免污染全局；this 指向 sandbox
+        // eslint-disable-next-line no-new-func
+        const fn = new Function('console', 'process', 'Math', 'Date', 'JSON', 'Array', 'Object', 'String', 'Number', 'Boolean', 'RegExp', 'Map', 'Set', 'WeakMap', 'WeakSet', 'Promise', 'Symbol', 'BigInt', 'Error', 'TypeError', 'RangeError', 'SyntaxError', 'Reflect', 'Proxy', 'structuredClone', 'setTimeout', 'parseInt', 'parseFloat', 'isNaN', 'isFinite', 'encodeURIComponent', 'decodeURIComponent',
+            '"use strict";\n' + code);
+        fn.apply(sandbox, Object.values(sandbox));
+    } catch (e) {
+        hasError = true;
+        stderr = (e && e.stack) ? (e.name + ': ' + e.message + '\n' + e.stack) : String(e);
+    }
+
+    // 合并：console 输出 + stdout
+    const stdoutText = [...logs, ...stdout].join('\n') + (logs.length && stdout.length ? '\n' : '');
+    return {
+        stdout: stdoutText,
+        stderr: stderr || errBuf.join(''),
+        hasError
+    };
+}
+
+function fmtArg(a) {
+    if (a === null) return 'null';
+    if (a === undefined) return 'undefined';
+    if (typeof a === 'string') return a;
+    try {
+        if (typeof a === 'object' && a && a.constructor && a.constructor.name === 'Error') return a.toString();
+        return JSON.stringify(a, null, 2);
+    } catch (e) {
+        return String(a);
+    }
+}
+
+// ========== Python：动态加载 Pyodide ==========
+async function ensurePyodide() {
+    if (pyodidePromise) return pyodidePromise;
+
+    pyodidePromise = (async () => {
+        // 已加载？
+        if (window.loadPyodide) {
+            return await window.loadPyodide();
+        }
+        // 注入 CDN script（pyodide v0.26.2）
+        await new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js';
+            s.onload = resolve;
+            s.onerror = () => reject(new Error('Pyodide CDN 加载失败，请检查网络'));
+            document.head.appendChild(s);
+        });
+        if (!window.loadPyodide) throw new Error('Pyodide 加载后未导出 loadPyodide');
+        return await window.loadPyodide();
+    })();
+
+    // 失败时清掉 promise 让下次能重试
+    try {
+        return await pyodidePromise;
+    } catch (e) {
+        pyodidePromise = null;
+        throw e;
+    }
+}
+
+async function runPython(code) {
+    const py = await ensurePyodide();
+
+    // 重定向 stdout / stderr
+    let stdout = '';
+    let stderr = '';
+    try {
+        py.setStdout({ batched: s => { stdout += s + '\n'; } });
+        py.setStderr({ batched: s => { stderr += s + '\n'; } });
+    } catch (e) {
+        // 老 API
+    }
+
+    let hasError = false;
+    try {
+        await py.runPythonAsync(code);
+    } catch (e) {
+        hasError = true;
+        stderr = (stderr || '') + (e.message || String(e));
+    }
+
+    return { stdout, stderr, hasError };
+}

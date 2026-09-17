@@ -1984,3 +1984,129 @@ body {
     font-weight: 500;
     line-height: 1.6;
 }
+
+/* ========== 浏览器内运行代码模块 ========== */
+
+/* 运行按钮 */
+.run-btn {
+    margin-left: auto;
+    padding: 4px 12px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    box-shadow: 0 1px 3px rgba(16, 185, 129, 0.3);
+}
+
+.run-btn:hover:not(:disabled) {
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
+}
+
+.run-btn:active:not(:disabled) {
+    transform: scale(0.96);
+}
+
+.run-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    background: #9ca3af;
+    box-shadow: none;
+}
+
+/* 让 code-block-header 支持按钮 flex 布局 */
+.code-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.code-block-header.right {
+    justify-content: space-between;
+}
+
+.code-block-header > span:first-child {
+    flex: 1;
+}
+
+/* 输出区 */
+.code-output {
+    margin-top: 8px;
+    border-radius: 6px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-family: 'Menlo', 'Consolas', monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    overflow-x: auto;
+    padding: 10px 12px;
+    border: 1px solid #1e293b;
+}
+
+.code-output.loading {
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.code-output.error {
+    border-color: #7f1d1d;
+    background: #1c0a0a;
+}
+
+.run-out-title {
+    color: #94a3b8;
+    font-size: 11px;
+    margin-bottom: 6px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.code-output.error .run-out-title {
+    color: #fca5a5;
+}
+
+.run-stdout,
+.run-stderr {
+    margin: 4px 0 0;
+    padding: 0;
+    background: transparent;
+    color: #d1fae5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: inherit;
+    font-size: inherit;
+}
+
+.run-stderr {
+    color: #fecaca;
+    margin-top: 6px;
+}
+
+.run-empty {
+    color: #64748b;
+    font-style: italic;
+}
+
+/* 运行中 spinner */
+.run-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid #334155;
+    border-top-color: #10b981;
+    border-radius: 50%;
+    animation: run-spin 0.8s linear infinite;
+}
+
+@keyframes run-spin {
+    to { transform: rotate(360deg); }
+}
+
+.run-line.run-err {
+    color: #fecaca;
+}
