@@ -1645,3 +1645,468 @@ body {
     color: var(--text-secondary);
     font-size: 14px;
 }
+
+/* ========== AI 举一反三模块 ========== */
+
+/* 详情页"AI 出题"按钮 */
+.ai-gen-btn {
+    width: 100%;
+    padding: 12px;
+    margin: 14px 0;
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+}
+
+.ai-gen-btn:active {
+    transform: scale(0.98);
+    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+}
+
+/* AI 弹窗 */
+.ai-modal-content,
+.ai-settings-content {
+    max-width: 480px;
+    width: 100%;
+    max-height: 88vh;
+    overflow-y: auto;
+    border-radius: var(--radius);
+    margin-top: 8vh;
+}
+
+.ai-modal-header {
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: white;
+}
+
+.ai-modal-header .knowledge-modal-title {
+    color: white;
+}
+
+.ai-modal-header .icon-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.ai-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ai-link-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 14px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.ai-link-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* 弹窗正文区 */
+.ai-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* 空状态 / 错误状态 */
+.ai-empty {
+    text-align: center;
+    padding: 36px 20px;
+}
+
+.ai-empty-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+}
+
+.ai-empty-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+}
+
+.ai-empty-hint {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    word-break: break-all;
+}
+
+.ai-empty-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 14px;
+    flex-wrap: wrap;
+}
+
+.ai-empty-actions .practice-quiz-btn {
+    flex: 0 0 auto;
+    min-width: 80px;
+    max-width: 140px;
+}
+
+/* 加载状态 */
+.ai-loading {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text-secondary);
+}
+
+.ai-spinner {
+    width: 44px;
+    height: 44px;
+    border: 4px solid #e0e7ff;
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    margin: 0 auto 16px;
+    animation: ai-spin 0.9s linear infinite;
+}
+
+@keyframes ai-spin {
+    to { transform: rotate(360deg); }
+}
+
+.ai-loading p {
+    font-size: 14px;
+}
+
+.ai-loading-hint {
+    font-size: 12px !important;
+    color: #9ca3af;
+    margin-top: 4px;
+}
+
+/* 成功 - 顶部摘要条 */
+.ai-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: #eef2ff;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--primary-dark);
+    font-weight: 500;
+}
+
+.ai-summary .ai-link-btn {
+    background: white;
+    color: var(--primary);
+    border: 1px solid #c7d2fe;
+}
+
+/* 题目卡片列表 */
+.ai-question-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ai-question-card {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid #a855f7;
+}
+
+.ai-card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.ai-card-question {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+
+.ai-question-card .practice-quiz-options {
+    margin-bottom: 12px;
+}
+
+.ai-card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.ai-card-actions .practice-quiz-btn {
+    flex: 1;
+}
+
+/* 批量操作 */
+.ai-batch-actions {
+    display: flex;
+    justify-content: center;
+    padding-top: 4px;
+}
+
+.ai-batch-actions .practice-quiz-btn {
+    flex: 1;
+}
+
+/* AI 设置弹窗 */
+.ai-settings-body {
+    padding: 16px;
+}
+
+.ai-settings-tip {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    padding: 10px 12px;
+    background: #f0fdf4;
+    border-radius: 8px;
+    border-left: 3px solid var(--success);
+    margin-bottom: 14px;
+}
+
+.ai-settings-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.ai-settings-actions .practice-quiz-btn {
+    flex: 1;
+}
+
+/* 练习页"AI变式"分类按钮 */
+.practice-cat-btn.ai-cat-btn {
+    background: linear-gradient(135deg, #eef2ff, #faf5ff);
+    color: #6366f1;
+    border-color: #c7d2fe;
+}
+
+.practice-cat-btn.ai-cat-btn.active {
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: white;
+    border-color: transparent;
+}
+
+/* 题型徽章 */
+.ai-type-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #f3f4f6;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-left: auto;
+    margin-right: 8px;
+}
+
+.ai-type-badge.code {
+    background: #faf5ff;
+    color: #a855f7;
+    border: 1px solid #e9d5ff;
+}
+
+/* 题干中的代码块 */
+.ai-card-question .ai-q-text {
+    display: inline;
+}
+
+.ai-card-question .ai-q-code {
+    margin: 8px 0;
+    padding: 12px;
+    background: #1e293b;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'Menlo', 'Consolas', monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+}
+
+.ai-card-question .ai-q-code code {
+    background: transparent;
+    padding: 0;
+    color: #e2e8f0;
+}
+
+/* code 题选项：等宽字体 + 保留空白 */
+.practice-quiz-option.ai-code-option {
+    font-family: 'Menlo', 'Consolas', 'Courier New', monospace;
+    font-size: 13px;
+    white-space: pre;
+    overflow-x: auto;
+    line-height: 1.5;
+}
+
+.practice-quiz-option.ai-code-option code {
+    background: transparent;
+    padding: 0;
+    font-family: inherit;
+    color: inherit;
+}
+
+/* 答案解析里的代码片段 */
+.practice-quiz-explanation code {
+    background: #fef3c7;
+    color: #92400e;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: 'Menlo', 'Consolas', monospace;
+    font-size: 12px;
+}
+
+/* 易错口诀区块 */
+.ai-mnemonic {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-left: 3px solid #f59e0b;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #92400e;
+    font-weight: 500;
+    line-height: 1.6;
+}
+
+/* ========== 浏览器内运行代码模块 ========== */
+
+/* 运行按钮 */
+.run-btn {
+    margin-left: auto;
+    padding: 4px 12px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    box-shadow: 0 1px 3px rgba(16, 185, 129, 0.3);
+}
+
+.run-btn:hover:not(:disabled) {
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
+}
+
+.run-btn:active:not(:disabled) {
+    transform: scale(0.96);
+}
+
+.run-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    background: #9ca3af;
+    box-shadow: none;
+}
+
+/* 让 code-block-header 支持按钮 flex 布局 */
+.code-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.code-block-header.right {
+    justify-content: space-between;
+}
+
+.code-block-header > span:first-child {
+    flex: 1;
+}
+
+/* 输出区 */
+.code-output {
+    margin-top: 8px;
+    border-radius: 6px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-family: 'Menlo', 'Consolas', monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    overflow-x: auto;
+    padding: 10px 12px;
+    border: 1px solid #1e293b;
+}
+
+.code-output.loading {
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.code-output.error {
+    border-color: #7f1d1d;
+    background: #1c0a0a;
+}
+
+.run-out-title {
+    color: #94a3b8;
+    font-size: 11px;
+    margin-bottom: 6px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.code-output.error .run-out-title {
+    color: #fca5a5;
+}
+
+.run-stdout,
+.run-stderr {
+    margin: 4px 0 0;
+    padding: 0;
+    background: transparent;
+    color: #d1fae5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: inherit;
+    font-size: inherit;
+}
+
+.run-stderr {
+    color: #fecaca;
+    margin-top: 6px;
+}
+
+.run-empty {
+    color: #64748b;
+    font-style: italic;
+}
+
+/* 运行中 spinner */
+.run-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid #334155;
+    border-top-color: #10b981;
+    border-radius: 50%;
+    animation: run-spin 0.8s linear infinite;
+}
+
+@keyframes run-spin {
+    to { transform: rotate(360deg); }
+}
+
+.run-line.run-err {
+    color: #fecaca;
+}
