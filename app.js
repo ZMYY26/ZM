@@ -1639,7 +1639,11 @@ function buildAIPrompt(m) {
 你是一位严谨、有 10 年经验的编程教学专家，擅长从一道学生的错题出发，设计出能"举一反三"的变式选择题，帮助学生真正吃透考点、避免再犯同类错误。
 
 # 任务
-基于下方学生的原错题，生成 ${count} 道四选一变式选择题。题目要覆盖不同认知层次（记忆 / 理解 / 应用 / 分析），难度逐题递增，做到"做一道带会一类"。
+基于下方学生的原错题，生成 ${count} 道四选一变式选择题。题型在「概念辨析题」与「代码补全题」两种之间搭配（${count >= 3 ? '至少各 1 道' : '可任选'}），题目要覆盖不同认知层次（记忆 / 理解 / 应用 / 分析），难度逐题递增，做到"做一道带会一类"。
+
+## 题型说明
+- **choice 概念辨析题**：题干是文字描述，4 个选项是文字。考察概念、原理、边界、复杂度等。
+- **code 代码补全题**：题干给一段有 \`<空缺>\` 标记的代码，问空缺处应填什么。4 个选项是**合法的代码片段**（不是完整程序），学生选出填入后能正确运行的片段。适合考察 API 易错、语法陷阱、边界处理。
 
 # 原错题信息
 - 标题：${title}
@@ -1691,21 +1695,27 @@ ${rightCode}
 {
   "questions": [
     {
+      "type": "choice",
       "topic": "字符串型知识点名，如：快速排序的分区策略",
       "difficulty": 1,
       "question": "题干文本，代码用三反引号包裹",
       "options": ["选项A", "选项B", "选项C", "选项D"],
       "answer": 0,
-      "explanation": "一句话解析"
+      "explanation": "一句话解析，点明为什么对、为什么错",
+      "mnemonic": "一句话易错口诀，便于学生记忆，如：分区后 pivot 已落位，递归跳过 i"
     }
   ]
 }
 
 字段约束：
 - 恰好生成 ${count} 道题，options 数组恰好 4 个字符串元素
+- type 必须是 "choice" 或 "code"，${count >= 3 ? '两种类型至少各出现 1 道' : ''}
 - answer 必须是 0~3 的整数，表示正确选项在 options 中的下标
 - difficulty 必须是 1、2 或 3 的整数
 - ${count} 道题的 difficulty 必须覆盖至少 2 个不同档位
+- explanation：不超过 60 字，点明对错原因
+- mnemonic：不超过 30 字的口诀或关键提示，给学生在考场上能默念的速记点，禁止复述题干
+- type=code 时，question 必须含 \`<空缺>\` 标记；options 4 项必须是合法代码片段（不是整段程序），4 个片段长度相近
 - 所有字符串必须是纯文本，禁止 \\n 之外的转义符，禁止嵌套 JSON
 
 # 参考样例（仅示意，禁止复制本样例的题目）
@@ -1715,12 +1725,24 @@ ${rightCode}
 {
   "questions": [
     {
+      "type": "choice",
       "topic": "快速排序的分区策略",
       "difficulty": 1,
       "question": "快速排序每一趟分区完成后，pivot 最终所在位置 i 的状态是？",
       "options": ["i 位置仍是待排序元素", "i 位置已经是最终有序位置", "i 位置需要再被作为 pivot", "i 位置数据将被丢弃"],
       "answer": 1,
-      "explanation": "分区后 pivot 已落最终位置，递归时不应再包含 i，故边界是 [left,i-1] 与 [i+1,right]。"
+      "explanation": "分区后 pivot 已落最终位置，递归时不应再包含 i。",
+      "mnemonic": "pivot 落位即终局，递归跳过 i 不回头"
+    },
+    {
+      "type": "code",
+      "topic": "快速排序的递归边界",
+      "difficulty": 2,
+      "question": "下面是修正后的快速排序骨架，\`<空缺>\` 处应填什么才能避免原题的递归死循环？\\n\`\`\`cpp\\nvoid quickSort(int a[], int l, int r) {\\n  if (l >= r) return;\\n  int i = partition(a, l, r);\\n  quickSort(a, l, <空缺>);\\n  quickSort(a, <空缺>, r);\\n}\\n\`\`\`",
+      "options": ["i - 1, i + 1", "i, i + 1", "i - 1, i", "i, i - 1"],
+      "answer": 0,
+      "explanation": "pivot 已在 i 落位，左右递归必须排除 i，故为 [l, i-1] 与 [i+1, r]。",
+      "mnemonic": "左闭右开都不含 i：i-1 与 i+1"
     }
   ]
 }
@@ -1784,16 +1806,20 @@ function parseAIQuestions(content) {
         if (!Number.isInteger(answer) || answer < 0 || answer >= options.length) {
             answer = 0;
         }
+        // 题型容错：仅识别 code，其他一律按 choice 处理
+        const rawType = String(q.type || 'choice').toLowerCase();
+        const type = rawType === 'code' ? 'code' : 'choice';
         return {
             id: 'ai_' + Date.now().toString(36) + '_' + idx,
             category: 'AI变式',
             topic: String(q.topic || aiCurrentMistake?.tags?.[0] || '综合'),
             difficulty: Math.max(1, Math.min(3, Number(q.difficulty) || 1)),
-            type: 'choice',
+            type,
             question: String(q.question || ''),
             options,
             answer,
             explanation: String(q.explanation || ''),
+            mnemonic: String(q.mnemonic || '').trim(),
             related: [],
             sourceMistakeId: aiCurrentMistake ? aiCurrentMistake.id : null,
             createdAt: Date.now()
@@ -1891,25 +1917,36 @@ function renderAIBody(state) {
 function renderAIQuestionCard(q) {
     const stars = '★'.repeat(q.difficulty) + '☆'.repeat(3 - q.difficulty);
     const state = aiAnswerState[q.id] || { selected: -1, answered: false };
+    const isCode = q.type === 'code';
 
     const optionsHtml = q.options.map((opt, idx) => {
-        let cls = 'practice-quiz-option';
+        let cls = 'practice-quiz-option' + (isCode ? ' ai-code-option' : '');
         if (state.answered) {
             if (idx === q.answer) cls += ' correct-answer';
             else if (idx === state.selected) cls += ' wrong-answer';
         } else if (idx === state.selected) {
             cls += ' selected';
         }
-        return `<button class="${cls}" onclick="selectAIOption('${q.id}', ${idx})">${String.fromCharCode(65 + idx)}. ${escapeHtml(opt)}</button>`;
+        const optInner = isCode
+            ? `<code>${escapeHtml(opt)}</code>`
+            : escapeHtml(opt);
+        return `<button class="${cls}" onclick="selectAIOption('${q.id}', ${idx})">${String.fromCharCode(65 + idx)}. ${optInner}</button>`;
     }).join('');
 
     let explanationHtml = '';
     if (state.answered) {
+        const correctOpt = isCode
+            ? `<code>${escapeHtml(q.options[q.answer])}</code>`
+            : escapeHtml(q.options[q.answer]);
+        const mnemonicHtml = q.mnemonic
+            ? `<div class="ai-mnemonic">🧠 易错口诀：${escapeHtml(q.mnemonic)}</div>`
+            : '';
         explanationHtml = `
             <div class="practice-quiz-explanation">
                 <div class="practice-quiz-explanation-title">${state.selected === q.answer ? '✅ 回答正确' : '❌ 回答错误'}</div>
-                <div>正确答案：${String.fromCharCode(65 + q.answer)}. ${escapeHtml(q.options[q.answer])}</div>
+                <div>正确答案：${String.fromCharCode(65 + q.answer)}. ${correctOpt}</div>
                 <div style="margin-top:6px;">💡 ${escapeHtml(q.explanation || '')}</div>
+                ${mnemonicHtml}
             </div>
         `;
     }
@@ -1930,18 +1967,49 @@ function renderAIQuestionCard(q) {
         `;
     }
 
+    const typeBadge = isCode
+        ? '<span class="ai-type-badge code">代码题</span>'
+        : '<span class="ai-type-badge">概念题</span>';
+
     return `
         <div class="ai-question-card" data-qid="${q.id}">
             <div class="ai-card-meta">
                 <span class="practice-card-category">${escapeHtml(q.topic || '综合')}</span>
+                ${typeBadge}
                 <span class="practice-card-difficulty">${stars}</span>
             </div>
-            <div class="ai-card-question">${escapeHtml(q.question)}</div>
+            <div class="ai-card-question">${renderAIQuestionText(q.question)}</div>
             <div class="practice-quiz-options">${optionsHtml}</div>
             ${explanationHtml}
             ${actionsHtml}
         </div>
     `;
+}
+
+// 渲染题干：支持三反引号代码块（带语言标签），其余按纯文本+换行
+function renderAIQuestionText(text) {
+    if (!text) return '';
+    const parts = text.split(/```(\w*)\r?\n([\s\S]*?)```/g);
+    let html = '';
+    for (let i = 0; i < parts.length; i++) {
+        if (i % 3 === 0) {
+            const t = parts[i];
+            if (t) html += '<span class="ai-q-text">' + escapeHtml(t).replace(/\n/g, '<br>') + '</span>';
+        } else if (i % 3 === 2) {
+            const lang = (parts[i - 1] || '').trim();
+            const code = parts[i].replace(/\n$/, '');
+            let codeHtml;
+            try {
+                codeHtml = lang && hljs.getLanguage(lang)
+                    ? hljs.highlight(code, { language: lang }).value
+                    : hljs.highlightAuto(code).value;
+            } catch (e) {
+                codeHtml = escapeHtml(code);
+            }
+            html += `<pre class="ai-q-code"><code class="hljs">${codeHtml}</code></pre>`;
+        }
+    }
+    return html;
 }
 
 // ========== 答题交互 ==========
@@ -2007,7 +2075,7 @@ function addAIToMistake(qid) {
         wrongCode: '',
         rightCode: '',
         tags: [q.topic || 'AI变式', '举一反三'],
-        note: `正确答案：${String.fromCharCode(65 + q.answer)}. ${q.options[q.answer]}\n解析：${q.explanation || ''}`,
+        note: `正确答案：${String.fromCharCode(65 + q.answer)}. ${q.options[q.answer]}\n解析：${q.explanation || ''}${q.mnemonic ? '\n🧠 口诀：' + q.mnemonic : ''}`,
         source: 'AI出题',
         image: null,
         status: 'pending',

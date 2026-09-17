@@ -1905,3 +1905,82 @@ body {
     color: white;
     border-color: transparent;
 }
+
+/* 题型徽章 */
+.ai-type-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #f3f4f6;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-left: auto;
+    margin-right: 8px;
+}
+
+.ai-type-badge.code {
+    background: #faf5ff;
+    color: #a855f7;
+    border: 1px solid #e9d5ff;
+}
+
+/* 题干中的代码块 */
+.ai-card-question .ai-q-text {
+    display: inline;
+}
+
+.ai-card-question .ai-q-code {
+    margin: 8px 0;
+    padding: 12px;
+    background: #1e293b;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'Menlo', 'Consolas', monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+}
+
+.ai-card-question .ai-q-code code {
+    background: transparent;
+    padding: 0;
+    color: #e2e8f0;
+}
+
+/* code 题选项：等宽字体 + 保留空白 */
+.practice-quiz-option.ai-code-option {
+    font-family: 'Menlo', 'Consolas', 'Courier New', monospace;
+    font-size: 13px;
+    white-space: pre;
+    overflow-x: auto;
+    line-height: 1.5;
+}
+
+.practice-quiz-option.ai-code-option code {
+    background: transparent;
+    padding: 0;
+    font-family: inherit;
+    color: inherit;
+}
+
+/* 答案解析里的代码片段 */
+.practice-quiz-explanation code {
+    background: #fef3c7;
+    color: #92400e;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: 'Menlo', 'Consolas', monospace;
+    font-size: 12px;
+}
+
+/* 易错口诀区块 */
+.ai-mnemonic {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-left: 3px solid #f59e0b;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #92400e;
+    font-weight: 500;
+    line-height: 1.6;
+}
