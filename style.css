@@ -2354,3 +2354,145 @@ body {
     text-align: center;
     padding: 20px 0;
 }
+
+/* ========== 连续打卡徽章 ========== */
+.streak-bar {
+    margin-bottom: 12px;
+}
+
+.streak-card {
+    background: linear-gradient(135deg, #fef3c7, #fde68a 40%, #fbbf24);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+}
+
+.streak-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.streak-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.streak-count {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+}
+
+.streak-num {
+    font-size: 36px;
+    font-weight: 800;
+    color: #92400e;
+    line-height: 1;
+}
+
+.streak-unit {
+    font-size: 14px;
+    font-weight: 600;
+    color: #b45309;
+}
+
+.streak-fire {
+    font-size: 28px;
+    line-height: 1;
+}
+
+.streak-info {
+    flex: 1;
+}
+
+.streak-badge-name-lg {
+    font-size: 14px;
+    font-weight: 700;
+    color: #78350f;
+}
+
+.streak-today {
+    font-size: 11px;
+    color: #92400e;
+    margin-top: 2px;
+}
+
+.streak-progress-wrap {
+    margin-top: 10px;
+}
+
+.streak-progress-label {
+    font-size: 11px;
+    color: #92400e;
+    margin-bottom: 4px;
+}
+
+.streak-progress-track {
+    height: 6px;
+    background: rgba(146, 64, 14, 0.15);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.streak-progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+
+.streak-max-hint {
+    margin-top: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #78350f;
+}
+
+.streak-badges {
+    display: flex;
+    gap: 6px;
+    margin-top: 12px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+}
+
+.streak-badge {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    min-width: 52px;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.streak-badge.unlocked {
+    background: rgba(255, 255, 255, 0.65);
+    border: 1px solid rgba(146, 64, 14, 0.2);
+}
+
+.streak-badge.locked {
+    background: rgba(0, 0, 0, 0.05);
+    opacity: 0.4;
+}
+
+.streak-badge-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.streak-badge-name {
+    font-size: 10px;
+    font-weight: 600;
+    color: #78350f;
+    white-space: nowrap;
+}
+
+.streak-badge-days {
+    font-size: 9px;
+    color: #92400e;
+}

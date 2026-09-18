@@ -218,7 +218,7 @@ function updateHeader(pageId) {
 
 function refreshCurrentPage() {
     switch (currentPage) {
-        case 'pageHome': renderMistakeList(); break;
+        case 'pageHome': renderMistakeList(); renderStreak(); break;
         case 'pageCategory': renderCategory(); break;
         case 'pageReview': renderReview(); break;
         case 'pageKnowledge': renderKnowledge(); break;
@@ -995,6 +995,7 @@ function init() {
     loadData();
     loadPracticeRecords();
     loadActivityLog();
+    logActivity();          // 每次打开 App 即打卡
 
     // 绑定导航
     document.querySelectorAll('.nav-item').forEach(item => {
@@ -1243,6 +1244,108 @@ function logActivity(ts) {
     const k = todayKey(ts);
     activityLog[k] = (activityLog[k] || 0) + 1;
     saveActivityLog();
+}
+
+/* ========================================
+ * 连续打卡徽章模块
+ * ======================================== */
+
+const STREAK_BADGES = [
+    { days: 3,   icon: '🔥', name: '初心者',   color: '#f97316' },
+    { days: 7,   icon: '⚡', name: '一周坚持', color: '#eab308' },
+    { days: 14,  icon: '🌟', name: '半月达人', color: '#84cc16' },
+    { days: 30,  icon: '💎', name: '月度王者', color: '#06b6d4' },
+    { days: 60,  icon: '👑', name: '持之以恒', color: '#8b5cf6' },
+    { days: 100, icon: '🏆', name: '百日传说', color: '#f43f5e' },
+];
+
+function calcStreak() {
+    const todayK = todayKey();
+    const yestK  = todayKey(Date.now() - 86400000);
+
+    // 今天和昨天都没有活动 → 断签
+    if (!activityLog[todayK] && !activityLog[yestK]) return 0;
+
+    // 从今天（或昨天）往前数连续天数
+    let streak = 0;
+    let d = new Date();
+    if (!activityLog[todayK]) d.setDate(d.getDate() - 1); // 今天还没活动，从昨天起算
+    while (activityLog[todayKey(d)]) {
+        streak++;
+        d.setDate(d.getDate() - 1);
+    }
+    return streak;
+}
+
+function getStreakBadge(streak) {
+    let current = null, next = null;
+    for (let i = 0; i < STREAK_BADGES.length; i++) {
+        if (streak >= STREAK_BADGES[i].days) {
+            current = STREAK_BADGES[i];
+            next = STREAK_BADGES[i + 1] || null;
+        }
+    }
+    return { current, next };
+}
+
+function renderStreak() {
+    const el = $('streakBar');
+    if (!el) return;
+
+    const streak = calcStreak();
+    const { current, next } = getStreakBadge(streak);
+
+    // 进度条
+    let progressHtml = '';
+    if (next) {
+        const prevDays = current ? current.days : 0;
+        const pct = Math.round((streak - prevDays) / (next.days - prevDays) * 100);
+        progressHtml = `
+            <div class="streak-progress-wrap">
+                <div class="streak-progress-label">
+                    <span>距「${next.icon} ${next.name}」还需 ${next.days - streak} 天</span>
+                </div>
+                <div class="streak-progress-track">
+                    <div class="streak-progress-fill" style="width:${pct}%;background:${next.color}"></div>
+                </div>
+            </div>
+        `;
+    } else {
+        progressHtml = `<div class="streak-max-hint">🎉 已达成最高徽章！</div>`;
+    }
+
+    // 所有徽章展示（已解锁高亮，未解锁灰色）
+    const badgesHtml = STREAK_BADGES.map(b => {
+        const unlocked = streak >= b.days;
+        return `<div class="streak-badge ${unlocked ? 'unlocked' : 'locked'}" title="${b.name}（${b.days}天）">
+            <span class="streak-badge-icon">${b.icon}</span>
+            <span class="streak-badge-name">${b.name}</span>
+            <span class="streak-badge-days">${b.days}天</span>
+        </div>`;
+    }).join('');
+
+    const todayK = todayKey();
+    const todayCount = activityLog[todayK] || 0;
+
+    el.innerHTML = `
+        <div class="streak-card">
+            <div class="streak-header">
+                <div class="streak-main">
+                    <div class="streak-count">
+                        <span class="streak-num">${streak}</span>
+                        <span class="streak-unit">天</span>
+                    </div>
+                    <div class="streak-fire">${current ? current.icon : '🌱'}</div>
+                </div>
+                <div class="streak-info">
+                    <div class="streak-badge-name-lg">${current ? current.name : '开始你的第一天'}</div>
+                    <div class="streak-today">今日活动 ${todayCount} 次</div>
+                </div>
+            </div>
+            ${progressHtml}
+            <div class="streak-badges">${badgesHtml}</div>
+        </div>
+    `;
 }
 
 // ========== 统计页（热力图 + 雷达图）==========
