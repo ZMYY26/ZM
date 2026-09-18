@@ -2110,3 +2110,148 @@ body {
 .run-line.run-err {
     color: #fecaca;
 }
+
+/* ========== 统计页 ========== */
+.stats-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px;
+    margin: 14px 12px;
+}
+.stats-card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+}
+.stats-card-sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 14px;
+}
+/* 复习热力图 */
+.heatmap-grid {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(7, 12px);
+    gap: 3px;
+    margin-bottom: 10px;
+    overflow-x: auto;
+}
+.heatmap-grid:empty {
+    display: none;
+}
+.heat-cell {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    background: #ebedf0;
+}
+.heat-cell.l0 { background: #ebedf0; }
+.heat-cell.l1 { background: rgba(79, 70, 229, 0.25); }
+.heat-cell.l2 { background: rgba(79, 70, 229, 0.5); }
+.heat-cell.l3 { background: rgba(79, 70, 229, 0.75); }
+.heat-cell.l4 { background: #4f46e5; }
+.heat-cell.today {
+    outline: 2px solid var(--warning);
+    outline-offset: 1px;
+}
+.heat-cell.empty {
+    background: transparent;
+}
+.heatmap-months {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.heat-month {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+.heat-legend {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+/* 弱点雷达图 */
+.radar-svg {
+    width: 100%;
+    max-width: 300px;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+.radar-ring {
+    fill: none;
+    stroke: #d1d5db;
+    stroke-width: 1;
+}
+.radar-axis {
+    stroke: #d1d5db;
+    stroke-width: 1;
+    opacity: 0.7;
+}
+.radar-label {
+    font-size: 11px;
+    fill: var(--text-secondary);
+}
+.radar-val {
+    font-size: 10px;
+    fill: var(--text);
+    font-weight: 600;
+}
+.radar-area {
+    fill: rgba(79, 70, 229, 0.35);
+}
+.radar-stroke {
+    fill: none;
+    stroke: #4f46e5;
+    stroke-width: 2;
+}
+.radar-dot {
+    fill: #4f46e5;
+    stroke: #fff;
+    stroke-width: 1.5;
+}
+.radar-legend {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+}
+.radar-legend-title {
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: block;
+    margin-bottom: 8px;
+}
+.radar-legend-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+}
+.radar-legend-list li {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--text);
+}
+.radar-legend-list li b {
+    font-weight: 600;
+}
+.legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.stats-empty {
+    text-align: center;
+    padding: 20px 0;
+}

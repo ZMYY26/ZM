@@ -310,6 +310,37 @@
             </div>
         </div>
     </div>
+
+    <!-- 统计页 -->
+    <section class="page" id="pageStats">
+        <div class="stats-card">
+            <h3 class="stats-card-title">🔥 复习热力图</h3>
+            <p class="stats-card-sub" id="statsHeatTitle">加载中...</p>
+            <div class="heatmap-grid" id="heatmapGrid"></div>
+            <div class="heatmap-months">
+                <span class="heat-month">近 6 个月</span>
+            </div>
+            <div class="heat-legend">
+                <span>少</span>
+                <i class="heat-cell l0"></i>
+                <i class="heat-cell l1"></i>
+                <i class="heat-cell l2"></i>
+                <i class="heat-cell l3"></i>
+                <i class="heat-cell l4"></i>
+                <span>多</span>
+            </div>
+        </div>
+
+        <div class="stats-card">
+            <h3 class="stats-card-title">🎯 弱点雷达图</h3>
+            <p class="stats-card-sub">按考点标签统计未掌握率与练习错误率（值越高越需加强）</p>
+            <div class="stats-empty" id="statsRadarEmpty" style="display:none">
+                <p class="empty-text">暂无足够的错题/练习数据</p>
+                <p class="empty-hint">添加错题或做几次练习后会在这里生成雷达图</p>
+            </div>
+            <div id="radarSvg"></div>
+        </div>
+    </section>
 </main>
 
 <!-- 悬浮添加按钮 -->
@@ -337,6 +368,10 @@
         <span class="nav-icon">⏰</span>
         <span class="nav-label">复习</span>
         <span class="nav-badge" id="reviewBadge" style="display:none">0</span>
+    </button>
+    <button class="nav-item" data-page="pageStats">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">统计</span>
     </button>
 </nav>
 

@@ -208,7 +208,8 @@ function updateHeader(pageId) {
         pageEdit: editingId ? '编辑错题' : '添加错题',
         pageDetail: '错题详情',
         pageKnowledge: '知识库',
-        pagePractice: '错题练习'
+        pagePractice: '错题练习',
+        pageStats: '学习统计'
     };
 
     $('pageTitle').textContent = titles[pageId] || '代码错题集';
@@ -222,6 +223,7 @@ function refreshCurrentPage() {
         case 'pageReview': renderReview(); break;
         case 'pageKnowledge': renderKnowledge(); break;
         case 'pagePractice': renderPractice(); break;
+        case 'pageStats': renderStats(); break;
     }
 }
 
@@ -601,6 +603,7 @@ function handleFormSubmit(event) {
             lastReviewAt: Date.now(),
             createdAt: Date.now()
         });
+        logActivity(); // 记录学习活动（统计热力图）
         showToast('添加成功');
     }
 
@@ -711,6 +714,7 @@ function markMastered(id) {
     m.status = 'mastered';
     m.lastReviewAt = Date.now();
     m.reviewCount = REVIEW_INTERVALS.length;
+    logActivity();
 
     saveData();
     showToast('🎉 恭喜！已标记为掌握');
@@ -725,6 +729,7 @@ function unmarkMastered(id) {
     m.status = 'pending';
     m.reviewCount = 0;
     m.lastReviewAt = Date.now();
+    logActivity();
 
     saveData();
     showToast('好的，继续复习！');
@@ -748,6 +753,7 @@ function markReviewed(id) {
     m.lastReviewAt = Date.now();
     m.reviewCount = (m.reviewCount || 0) + 1;
     m.reviewCheck = true;
+    logActivity();
 
     saveData();
     showToast('复习完成！');
@@ -986,6 +992,8 @@ function bindFilterEvents() {
 function init() {
     // 加载数据
     loadData();
+    loadPracticeRecords();
+    loadActivityLog();
 
     // 绑定导航
     document.querySelectorAll('.nav-item').forEach(item => {
@@ -1204,6 +1212,198 @@ for (var i = 0; i < 5; i++) {
 /* ========================================
  * 错题练习模块 - 举一反三
  * ======================================== */
+
+// ========== 活动日志（统计热力图数据源）==========
+const ACTIVITY_STORAGE_KEY = 'code_activity_log_v1';
+let activityLog = {};   // { 'YYYY-MM-DD': 次数 }
+
+function todayKey(ts) {
+    const d = new Date(ts || Date.now());
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function loadActivityLog() {
+    try {
+        activityLog = localStorage.getItem(ACTIVITY_STORAGE_KEY) ? JSON.parse(localStorage.getItem(ACTIVITY_STORAGE_KEY)) : {};
+    } catch (e) {
+        activityLog = {};
+    }
+}
+
+function saveActivityLog() {
+    try { localStorage.setItem(ACTIVITY_STORAGE_KEY, JSON.stringify(activityLog)); }
+    catch (e) { console.error('保存活动日志失败:', e); }
+}
+
+function logActivity(ts) {
+    const k = todayKey(ts);
+    activityLog[k] = (activityLog[k] || 0) + 1;
+    saveActivityLog();
+}
+
+// ========== 统计页（热力图 + 雷达图）==========
+function renderStats() {
+    renderHeatmap();
+    renderRadar();
+}
+
+function renderHeatmap() {
+    const today = new Date();
+    const weeks = 26; // 展示最近 26 周
+    const cellDays = weeks * 7;
+    const days = [];
+    for (let i = cellDays - 1; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        days.push(d);
+    }
+
+    let max = 1;
+    days.forEach(d => {
+        const n = activityLog[todayKey(d)] || 0;
+        if (n > max) max = n;
+    });
+
+    // 按周一到周日切列
+    const firstDay = days[0];
+    // 计算起始日前面差多少天补到周一
+    const leading = (firstDay.getDay() + 6) % 7; // 周几到周一的偏移
+    const colCount = Math.ceil((days.length + leading) / 7);
+    const grid = [];
+    let idx = 0;
+    for (let w = 0; w < colCount; w++) {
+        const col = [];
+        for (let d = 0; d < 7; d++) {
+            const globalIdx = w * 7 + d - leading;
+            if (globalIdx < 0 || globalIdx >= days.length) {
+                col.push(null);
+            } else {
+                col.push(days[globalIdx]);
+            }
+        }
+        grid.push(col);
+    }
+
+    const title = $('statsHeatTitle');
+    if (title) title.textContent = `${weeks} 周温故记录 · 共 ${Object.values(activityLog).reduce((a, b) => a + b, 0)} 次`;
+
+    const heat = $('heatmapGrid');
+    if (!heat) return;
+    let html = '';
+    for (let w = 0; w < grid.length; w++) {
+        for (let d = 0; d < 7; d++) {
+            const date = grid[w][d];
+            if (!date) { html += '<div class="heat-cell empty"></div>'; continue; }
+            const k = todayKey(date);
+            const n = activityLog[k] || 0;
+            const level = n === 0 ? 0 : Math.min(4, 1 + Math.floor((n - 1) * 3 / Math.max(1, max)));
+            const isToday = todayKey(date) === todayKey();
+            html += `<div class="heat-cell l${level}${isToday ? ' today' : ''}" title="${k} · ${n} 次"></div>`;
+        }
+    }
+    heat.innerHTML = html;
+}
+
+// 弱点雷达图：按考点标签统计「待复习/错题集中度」与「练习正确率」
+function renderRadar() {
+    const container = $('radarSvg');
+    if (!container) return;
+
+    // 聚合按标签：总错题数、未掌握数、以及该标签相关练习正确率
+    const tagMap = {};   // tag -> { total, weak, practiceTotal, practiceCorrect }
+    (mistakes || []).forEach(m => {
+        (m.tags || []).forEach(t => {
+            if (!tagMap[t]) tagMap[t] = { total: 0, weak: 0, practiceTotal: 0, practiceCorrect: 0 };
+            tagMap[t].total++;
+            if (m.status !== 'mastered') tagMap[t].weak++;
+        });
+    });
+
+    // 结合练习正确率（覆盖 practice-data 中的 tags 匹配）
+    Object.keys(practiceRecords || {}).forEach(qid => {
+        const rec = practiceRecords[qid];
+        if (!rec) return;
+        const q = getAllPracticeQuestions().find(x => x.id === qid);
+        if (!q) return;
+        const t = q.topic || q.category;
+        if (!tagMap[t]) tagMap[t] = { total: 0, weak: 0, practiceTotal: 0, practiceCorrect: 0 };
+        tagMap[t].practiceTotal++;
+        if (rec.correct) tagMap[t].practiceCorrect++;
+    });
+
+    const entries = Object.entries(tagMap)
+        .filter(([t, v]) => (v.total + v.practiceTotal) > 0)
+        .sort((a, b) => (b[1].total + b[1].practiceTotal) - (a[1].total + a[1].practiceTotal))
+        .slice(0, 8);
+
+    const hideEmpty = () => { const e = $('statsRadarEmpty'); if (e) e.style.display = 'none'; };
+    const showEmpty = () => { const e = $('statsRadarEmpty'); if (e) e.style.display = 'block'; };
+
+    if (entries.length < 2) {
+        container.innerHTML = '';
+        showEmpty();
+        return;
+    }
+    hideEmpty();
+
+    // 弱点系数 = 未掌握错题占比 + 练习错误率，合成为 0~1
+    const data = entries.map(([t, v]) => {
+        const m = v.total ? v.weak / v.total : 0;
+        const p = v.practiceTotal ? (v.practiceTotal - v.practiceCorrect) / v.practiceTotal : 0;
+        const score = m * 0.6 + p * 0.4;
+        return { tag: t, score: Math.max(0, Math.min(1, score || 0)) };
+    });
+
+    const size = 300, cx = 150, cy = 145, R = 90;
+    const n = data.length;
+    const angle = (i) => (Math.PI * 2 / n) * i - Math.PI / 2;
+    const pt = (i, r) => [cx + r * Math.cos(angle(i)), cy + r * Math.sin(angle(i))].map(v => +v.toFixed(2)).join(',');
+
+    let poly = '';
+    for (let ring = 1; ring <= 4; ring++) {
+        const rr = R * ring / 4;
+        poly += `<polygon points="${data.map((_, i) => pt(i, rr)).join(' ')}" class="radar-ring"/>`;
+    }
+    let axes = '';
+    data.forEach((_, i) => {
+        const [x, y] = pt(i, R).split(',').map(Number);
+        axes += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" class="radar-axis"/>`;
+    });
+    const polyPts = data.map((_, i) => pt(i, R * data[i].score)).map((s) => {
+        const [x, y] = s.split(',');
+        return `${x},${y}`;
+    }).join(' ');
+    let dots = data.map((_, i) => {
+        const [x, y] = pt(i, R * data[i].score).split(',');
+        return `<circle cx="${x}" cy="${y}" r="3.5" class="radar-dot"/>`;
+    }).join('');
+    let labels = data.map((d, i) => {
+        const [x0, y0] = pt(i, R + 4).split(',').map(Number);
+        const [x, y] = pt(i, R + 20).split(',').map(Number);
+        return `<text x="${x}" y="${y + 4}" class="radar-label" text-anchor="middle">${escapeHtml(d.tag)}</text>`;
+    }).join('');
+
+    container.innerHTML = `
+        <svg viewBox="0 0 ${size} ${size}" class="radar-svg">
+            ${poly}${axes}${labels}
+            <polygon points="${polyPts}" class="radar-area" fill-opacity="0.35"/>
+            <polygon points="${polyPts}" class="radar-stroke"/>
+            ${dots}
+        </svg>
+        <div class="radar-legend">
+            <span class="radar-legend-title">弱点集中度（值越高越弱）</span>
+            <ul class="radar-legend-list">
+                ${data.map((d, i) => {
+                    const color = d.score > 0.66 ? '#ef4444' : d.score > 0.33 ? '#f59e0b' : '#22c55e';
+                    return `<li><i class="legend-dot" style="background:${color}"></i>${escapeHtml(d.tag)} <b>${Math.round(d.score * 100)}%</b></li>`;
+                }).join('')}
+            </ul>
+        </div>
+    `;
+}
 
 // ========== 练习状态 ==========
 const PRACTICE_STORAGE_KEY = 'code_practice_record_v1';
@@ -1452,7 +1652,7 @@ function submitPracticeAnswer() {
         count: (prev.count || 0) + 1
     };
     savePracticeRecords();
-
+    logActivity();
     currentPracticeAnswered = true;
     renderPracticeQuestion();
     updatePracticeStats();
