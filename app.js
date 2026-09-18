@@ -218,7 +218,7 @@ function updateHeader(pageId) {
 
 function refreshCurrentPage() {
     switch (currentPage) {
-        case 'pageHome': renderMistakeList(); renderStreak(); break;
+        case 'pageHome': renderMistakeList(); renderStreak(); renderPoints(); break;
         case 'pageCategory': renderCategory(); break;
         case 'pageReview': renderReview(); break;
         case 'pageKnowledge': renderKnowledge(); break;
@@ -604,6 +604,7 @@ function handleFormSubmit(event) {
             createdAt: Date.now()
         });
         logActivity(); // 记录学习活动（统计热力图）
+        addPoints(10, '记录新错题');
         showToast('添加成功');
     }
 
@@ -696,6 +697,7 @@ function renderDetail(m) {
 
         <button class="ai-gen-btn" onclick="openAIModal('${m.id}')">🤖 AI 举一反三</button>
         <button class="ai-gen-btn" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)" onclick="openAIDiagnosis('${m.id}')">🔍 AI 诊断</button>
+        <button class="ai-gen-btn" style="background:linear-gradient(135deg,#f59e0b,#ef4444)" onclick="shareMistakeCard('${m.id}')">📤 分享卡片</button>
         <div class="detail-footer">
             ${m.status !== 'mastered' ? `
                 <button class="action-btn success" onclick="markMastered('${m.id}')">✓ 已掌握</button>
@@ -708,6 +710,173 @@ function renderDetail(m) {
     `;
 }
 
+// ========== 错题分享卡片 ==========
+function shareMistakeCard(id) {
+    const m = mistakes.find(x => x.id === id);
+    if (!m) return;
+
+    // 检查是否支持 Web Share（移动端优先分享）
+    const shareData = {
+        title: m.title || '我的错题',
+        text: `【错题分享】${m.title}\n语言：${getLangName(m.lang)}\n考点：${(m.tags || []).join('、') || '综合'}\n\n${(m.wrongCode || '').slice(0, 200)}`
+    };
+    if (navigator.share && window.matchMedia('(max-width:768px)').matches) {
+        navigator.share(shareData).then(() => {}).catch(() => {});
+        return;
+    }
+    // 桌面端生成并下载图片分享卡片
+    generateShareCard(m);
+}
+
+function generateShareCard(m) {
+    const W = 720, H = 920;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    const holder = $('shareCanvasHolder');
+    holder.innerHTML = '';
+    holder.appendChild(canvas);
+
+    // 背景渐变
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#4f46e5');
+    bg.addColorStop(1, '#312e81');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // 顶部标题
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.font = 'bold 22px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('📚 代码错题集', 40, 56);
+
+    // 语言徽章
+    ctx.fillStyle = '#22d3ee';
+    ctx.beginPath();
+    ctx.roundRect(40, 84, 130, 34, 8);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(getLangName(m.lang), 105, 106);
+
+    // 题目标题
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 34px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'left';
+    wrapText(ctx, m.title || '未命名', 40, 160, W - 80, 44, 60);
+
+    const tags = (m.tags || []).slice(0, 4);
+    let tagX = 40;
+    tags.forEach(t => {
+        const w = ctx.measureText('#' + t).width + 24;
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.beginPath();
+        ctx.roundRect(tagX, 210, w, 30, 15);
+        ctx.fill();
+        ctx.fillStyle = '#e9d5ff';
+        ctx.font = '13px "PingFang SC","Microsoft YaHei",sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('#' + t, tagX + w / 2, 230);
+        tagX += w + 10;
+    });
+
+    // 主体白卡片
+    const cardTop = 280;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.roundRect(40, cardTop, W - 80, H - cardTop - 120, 20);
+    ctx.fill();
+
+    // 内容区标题（截断显示）
+    let y = cardTop + 45;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ef4444';
+    ctx.font = 'bold 18px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillText('❌ 错误代码', 70, y);
+    y += 28;
+    ctx.fillStyle = '#1f2937';
+    ctx.font = '15px Menlo,Consolas,monospace';
+    y = drawCodeBlock(ctx, m.wrongCode, 70, y, W - 140, '#fee2e2');
+
+    const manualY = y + 14;
+    ctx.fillStyle = '#22c55e';
+    ctx.font = 'bold 18px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillText('✅ 正确代码', 70, manualY);
+    y = manualY + 28;
+    ctx.fillStyle = '#1f2937';
+    ctx.font = '15px Menlo,Consolas,monospace';
+    drawCodeBlock(ctx, m.rightCode || '（未记录）', 70, y, W - 140, '#dcfce7');
+
+    // 底部
+    ctx.fillStyle = '#6b7280';
+    ctx.font = '14px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('记录易错点，让每次错误都成为进步', W / 2, H - 62);
+
+    // 生成图片并下载或分享
+    canvas.toBlob(blob => {
+        if (!blob) { showToast('生成图片失败'); return; }
+        const fileName = '错题分享_' + (m.title || '错题').slice(0, 12) + '.png';
+        const url = URL.createObjectURL(blob);
+        if (navigator.share && window.matchMedia('(max-width:768px)').matches) {
+            const file = new File([blob], fileName, { type: 'image/png' });
+            navigator.share({ files: [file], title: m.title }).then(() => {
+                URL.revokeObjectURL(url);
+            }).catch(() => { URL.revokeObjectURL(url); });
+        } else {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            showToast('✓ 分享卡片已生成');
+        }
+    }, 'image/png');
+}
+
+function drawCodeBlock(ctx, code, x, startY, maxW, bgColor) {
+    const lines = String(code || '').split('\n');
+    const fontSize = 15, lineH = 22;
+    const shown = lines.slice(0, 9);    // 最多显示 9 行
+    const h = shown.length * lineH + 24;
+    if (h > 0) {
+        ctx.fillStyle = bgColor;
+        ctx.beginPath();
+        ctx.roundRect(x - 8, startY - 20, maxW + 16, h, 10);
+        ctx.fill();
+    }
+    ctx.fillStyle = '#1f2937';
+    ctx.font = '14px Menlo,Consolas,monospace';
+    shown.forEach((line, i) => {
+        const clipped = line.length > 52 ? line.slice(0, 52) + '…' : line;
+        ctx.fillText(clipped, x, startY + i * lineH);
+    });
+    return startY + h + 8;
+}
+
+function wrapText(ctx, text, x, y, maxW, lineHeight, maxLines) {
+    const chars = String(text).split('');
+    let line = '';
+    let count = 0;
+    for (let i = 0; i < chars.length; i++) {
+        const test = line + chars[i];
+        if (ctx.measureText(test).width > maxW && line) {
+            ctx.fillText(line, x, y);
+            line = chars[i];
+            y += lineHeight;
+            count++;
+            if (count >= maxLines - 1) { ctx.fillText(line + '…', x, y); return; }
+        } else {
+            line = test;
+        }
+    }
+    if (line) ctx.fillText(line, x, y);
+}
+
 function markMastered(id) {
     const m = mistakes.find(x => x.id === id);
     if (!m) return;
@@ -716,6 +885,7 @@ function markMastered(id) {
     m.lastReviewAt = Date.now();
     m.reviewCount = REVIEW_INTERVALS.length;
     logActivity();
+    addPoints(50, '掌握一道错题');
 
     saveData();
     showToast('🎉 恭喜！已标记为掌握');
@@ -755,6 +925,7 @@ function markReviewed(id) {
     m.reviewCount = (m.reviewCount || 0) + 1;
     m.reviewCheck = true;
     logActivity();
+    addPoints(5, '完成一次复习');
 
     saveData();
     showToast('复习完成！');
@@ -995,6 +1166,7 @@ function init() {
     loadData();
     loadPracticeRecords();
     loadActivityLog();
+    loadPoints();
     logActivity();          // 每次打开 App 即打卡
 
     // 绑定导航
@@ -1247,6 +1419,83 @@ function logActivity(ts) {
 }
 
 /* ========================================
+ * 学习积分与等级模块
+ * ======================================== */
+const POINTS_KEY = 'code_points_v1';
+
+const LEVELS = [
+    { level: 1, name: '青铜学徒', min: 0,   icon: '🥉', color: '#b45309' },
+    { level: 2, name: '白银练手', min: 50,  icon: '🥈', color: '#64748b' },
+    { level: 3, name: '黄金进阶', min: 150, icon: '🥇', color: '#eab308' },
+    { level: 4, name: '铂金达人', min: 300, icon: '💎', color: '#06b6d4' },
+    { level: 5, name: '钻石高手', min: 600, icon: '🔥', color: '#0ea5e9' },
+    { level: 6, name: '荣耀宗师', min: 1000,icon: '🏆', color: '#8b5cf6' },
+];
+
+let userPoints = 0;
+
+function loadPoints() {
+    try {
+        userPoints = parseInt(localStorage.getItem(POINTS_KEY), 10) || 0;
+    } catch (e) { userPoints = 0; }
+}
+
+function savePoints() {
+    try { localStorage.setItem(POINTS_KEY, String(userPoints)); }
+    catch (e) { console.error('保存积分失败:', e); }
+}
+
+function addPoints(amount, reason) {
+    if (!amount) return;
+    userPoints += amount;
+    savePoints();
+    if (reason) showToast(`+${amount} 积分 · ${reason}`);
+    renderPoints();
+}
+
+function getLevel(points) {
+    let cur = LEVELS[0], next = null;
+    for (let i = 0; i < LEVELS.length; i++) {
+        if (points >= LEVELS[i].min) {
+            cur = LEVELS[i];
+            next = LEVELS[i + 1] || null;
+        }
+    }
+    return { cur, next };
+}
+
+function renderPoints() {
+    const el = $('pointsCard');
+    if (!el) return;
+    const { cur, next } = getLevel(userPoints);
+
+    let progress = '';
+    if (next) {
+        const pct = Math.round((userPoints - cur.min) / (next.min - cur.min) * 100);
+        progress = `
+            <div class="points-level-line">距「${next.icon} ${next.name}」还需 ${next.min - userPoints} 分</div>
+            <div class="points-track"><div class="points-fill" style="width:${pct}%;background:${next.color}"></div></div>
+        `;
+    } else {
+        progress = `<div class="points-level-line">🎉 已达成最高等级！</div>`;
+    }
+
+    el.innerHTML = `
+        <div class="points-main">
+            <div class="points-num">${userPoints}<span class="points-unit">分</span></div>
+            <div class="points-identity">
+                <span class="points-level-icon">${cur.icon}</span>
+                <div>
+                    <div class="points-level-name">${cur.name} · Lv.${cur.level}</div>
+                    <div class="points-tip">记录/复习/练习可得积分，升级解锁等级</div>
+                </div>
+            </div>
+        </div>
+        ${progress}
+    `;
+}
+
+/* ========================================
  * 连续打卡徽章模块
  * ======================================== */
 
@@ -1348,10 +1597,12 @@ function renderStreak() {
     `;
 }
 
-// ========== 统计页（热力图 + 雷达图）==========
+// ========== 统计页（热力图 + 雷达图 + 趋势 + 日历）==========
 function renderStats() {
     renderHeatmap();
     renderRadar();
+    renderTrend();
+    renderCalendar();
 }
 
 function renderHeatmap() {
@@ -1509,9 +1760,227 @@ function renderRadar() {
     `;
 }
 
+// ========== 错题趋势折线图 ==========
+let trendRange = 'week';   // 'week' | 'month'
+
+function setTrendRange(r) {
+    trendRange = r;
+    document.querySelectorAll('.trend-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.range === r);
+    });
+    renderTrend();
+}
+
+function buildTrendBuckets() {
+    const now = Date.now();
+    const dayMs = 86400000;
+
+    // 收集每条错题的新增时间(mastered 时间取 lastReviewAt)
+    const items = (mistakes || []).map(m => ({
+        created: m.createdAt,
+        mastered: (m.status === 'mastered') ? (m.lastReviewAt || m.createdAt) : null
+    })).filter(i => i.created);
+
+    if (trendRange === 'month') {
+        // 按月：近 12 个月，键 = 'YYYY-MM'
+        const buckets = [];
+        const nowD = new Date(now);
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(nowD.getFullYear(), nowD.getMonth() - i, 1);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            buckets.push({ key, label: `${d.getMonth() + 1}月`, created: 0, mastered: 0 });
+        }
+        const find = key => buckets.find(b => b.key === key);
+        items.forEach(i => {
+            const ck = `${new Date(i.created).getFullYear()}-${String(new Date(i.created).getMonth() + 1).padStart(2, '0')}`;
+            const b = find(ck); if (b) b.created++;
+            if (i.mastered) {
+                const mk = `${new Date(i.mastered).getFullYear()}-${String(new Date(i.mastered).getMonth() + 1).padStart(2, '0')}`;
+                const b2 = find(mk); if (b2) b2.mastered++;
+            }
+        });
+        return buckets;
+    }
+
+    // 按周：近 12 周，键 = 周起始日(周一)
+    const buckets = [];
+    const offset = (new Date(now).getDay() + 6) % 7; // 今天距本周一
+    for (let i = 11; i >= 0; i--) {
+        const monday = new Date(now - (offset + i * 7) * dayMs);
+        monday.setHours(0, 0, 0, 0);
+        const key = todayKey(monday);
+        buckets.push({ key, label: `W${11 - i + 1}`, created: 0, mastered: 0 });
+    }
+    const mondayOf = ts => {
+        const d = new Date(ts);
+        const o = (d.getDay() + 6) % 7;
+        d.setDate(d.getDate() - o);
+        d.setHours(0, 0, 0, 0);
+        return todayKey(d);
+    };
+    items.forEach(i => {
+        const b = buckets.find(x => x.key === mondayOf(i.created)); if (b) b.created++;
+        if (i.mastered) { const b2 = buckets.find(x => x.key === mondayOf(i.mastered)); if (b2) b2.mastered++; }
+    });
+    return buckets;
+}
+
+function renderTrend() {
+    const svg = $('trendSvg');
+    if (!svg) return;
+    const buckets = buildTrendBuckets();
+    const hasData = buckets.some(b => b.created > 0 || b.mastered > 0);
+
+    const emptyEl = $('statsTrendEmpty');
+    if (emptyEl) emptyEl.style.display = hasData ? 'none' : 'block';
+    if (!hasData) { svg.innerHTML = ''; return; }
+
+    const W = 440, H = 160, PAD = { l: 30, r: 12, t: 14, b: 28 };
+    const innerW = W - PAD.l - PAD.r;
+    const innerH = H - PAD.t - PAD.b;
+    const n = buckets.length;
+    const max = Math.max(1, ...buckets.flatMap(b => [b.created, b.mastered]));
+
+    const dateColors = { created: '#4f46e5', mastered: '#22c55e' };
+
+    function path(keyName) {
+        let d = '';
+        buckets.forEach((b, i) => {
+            const x = PAD.l + (n === 1 ? innerW / 2 : innerW * i / (n - 1));
+            const y = PAD.t + innerH - (b[keyName] / max) * innerH;
+            d += (i === 0 ? `M` : `L`) + `${x.toFixed(1)},${y.toFixed(1)} `;
+        });
+        return d;
+    }
+
+    // 折线 + 面积
+    function area(keyName) {
+        let d = '';
+        buckets.forEach((b, i) => {
+            const x = PAD.l + (n === 1 ? innerW / 2 : innerW * i / (n - 1));
+            const y = PAD.t + innerH - (b[keyName] / max) * innerH;
+            d += (i === 0 ? `M` : `L`) + `${x.toFixed(1)},${y.toFixed(1)} `;
+        });
+        return d + `L${(PAD.l + innerW).toFixed(1)},${(PAD.t + innerH).toFixed(1)} L${PAD.l},${(PAD.t + innerH).toFixed(1)} Z`;
+    }
+
+    // 网格线（水平 3 条）与 Y 轴刻度
+    let grid = '';
+    for (let g = 0; g <= 3; g++) {
+        const y = PAD.t + innerH * g / 3;
+        grid += `<line x1="${PAD.l}" y1="${y}" x2="${W - PAD.r}" y2="${y}" class="trend-grid"/>`;
+        grid += `<text x="${PAD.l - 6}" y="${y + 3}" class="trend-y" text-anchor="end">${Math.round(max - max * g / 3)}</text>`;
+    }
+
+    // X 轴标签（间隔显示避免拥挤）
+    let xLabels = '';
+    buckets.forEach((b, i) => {
+        if (n > 8 && i % Math.ceil(n / 6) !== 0) return;
+        const x = PAD.l + (n === 1 ? innerW / 2 : innerW * i / (n - 1));
+        xLabels += `<text x="${x}" y="${H - 8}" class="trend-x" text-anchor="middle">${b.label}</text>`;
+    });
+
+    // 数据点
+    let dots = '';
+    ['created', 'mastered'].forEach(kn => {
+        buckets.forEach((b, i) => {
+            const x = PAD.l + (n === 1 ? innerW / 2 : innerW * i / (n - 1));
+            const y = PAD.t + innerH - (b[kn] / max) * innerH;
+            dots += `<circle cx="${x}" cy="${y}" r="3" fill="${dateColors[kn]}"><title>${b.label} 新增${b.created} 掌握${b.mastered}</title></circle>`;
+        });
+    });
+
+    svg.innerHTML = `
+        <svg viewBox="0 0 ${W} ${H}" style="width:100%">
+            ${grid}
+            <path d="${area('created')}" fill="#4f46e5" opacity="0.08"/>
+            <path d="${path('created')}" fill="none" stroke="#4f46e5" stroke-width="2"/>
+            <path d="${area('mastered')}" fill="#22c55e" opacity="0.08"/>
+            <path d="${path('mastered')}" fill="none" stroke="#22c55e" stroke-width="2"/>
+            ${dots}
+            ${xLabels}
+        </svg>
+    `;
+}
+
+// ========== 错题日历回顾 ==========
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();   // 0-11
+
+function calMoveMonth(delta) {
+    let d = new Date(calYear, calMonth + delta, 1);
+    calYear = d.getFullYear();
+    calMonth = d.getMonth();
+    renderCalendar();
+}
+
+function renderCalendar() {
+    const grid = $('calGrid');
+    const title = $('calTitle');
+    const list = $('calDayList');
+    if (!grid || !title) return;
+
+    title.textContent = `${calYear}年 ${calMonth + 1}月`;
+
+    const first = new Date(calYear, calMonth, 1);
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const leading = first.getDay();   // 0=周日
+
+    // 按天收集错题
+    const byDay = {};
+    (mistakes || []).forEach(m => {
+        const k = todayKey(m.createdAt);
+        const y = +k.slice(0, 4), mo = +k.slice(5, 7), da = +k.slice(8, 10);
+        if (y === calYear && mo === calMonth + 1) {
+            (byDay[da] = byDay[da] || []).push(m);
+        }
+    });
+
+    let html = '';
+    for (let i = 0; i < leading + daysInMonth; i++) {
+        const day = i - leading + 1;
+        if (i < leading) { html += `<div class="cal-cell empty"></div>`; continue; }
+        const listOfDay = byDay[day] || [];
+        const isToday = (day === new Date().getDate() && calMonth === new Date().getMonth() && calYear === new Date().getFullYear());
+        const has = listOfDay.length > 0;
+        html += `<div class="cal-cell${isToday ? ' today' : ''}${has ? ' has' : ''}" onclick="showCalDay(${day})">
+            <span class="cal-day-num">${day}</span>
+            ${has ? `<span class="cal-day-dot">${listOfDay.length}</span>` : ''}
+        </div>`;
+    }
+    grid.innerHTML = html;
+
+    // 默认展示今天
+    showCalDay(new Date().getDate());
+}
+
+function showCalDay(day) {
+    const list = $('calDayList');
+    if (!list) return;
+    const items = (mistakes || []).filter(m => {
+        const k = todayKey(m.createdAt);
+        return +k.slice(0, 4) === calYear && +k.slice(5, 7) === calMonth + 1 && +k.slice(8, 10) === day;
+    });
+
+    if (!items.length) {
+        list.innerHTML = `<div class="cal-day-empty">这一天还没有记录错题</div>`;
+        return;
+    }
+
+    list.innerHTML = `
+        <div class="cal-day-title">${calYear}年${calMonth + 1}月${day}日 · ${items.length} 道错题</div>
+        <div class="cal-day-items">
+            ${items.map(m => `<div class="cal-day-item" onclick="viewMistake('${m.id}')">
+                <span class="lang-badge">${getLangName(m.lang)}</span>
+                <span class="cal-day-item-title">${escapeHtml(m.title)}</span>
+                <span class="cal-day-item-status">${m.status === 'mastered' ? '✅' : '📌'}</span>
+            </div>`).join('')}
+        </div>
+    `;
+}
+
 // ========== 练习状态 ==========
 const PRACTICE_STORAGE_KEY = 'code_practice_record_v1';
-
 let practiceActiveCategory = '';
 let practiceRecords = {};      // { q01: { done: true, correct: true, lastAt: ts, count: n } }
 let currentPracticeQuestion = null;
@@ -1757,6 +2226,7 @@ function submitPracticeAnswer() {
     };
     savePracticeRecords();
     logActivity();
+    if (correct) addPoints(30, '答对一道练习');
     currentPracticeAnswered = true;
     renderPracticeQuestion();
     updatePracticeStats();
@@ -2575,6 +3045,8 @@ function renderDiagnosisBody(state) {
                 ${tipsHtml}
                 <div class="diag-actions">
                     <button class="practice-quiz-btn practice-quiz-btn-primary" onclick="applyDiagnosis()">📝 应用到错题</button>
+                    <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="speakDiagnosis()">🔊 播放讲解</button>
+                    <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="stopDiagnosisSpeech()">⏹ 停止</button>
                     <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="closeAIModal()">完成</button>
                 </div>
             </div>
@@ -2601,6 +3073,34 @@ function applyDiagnosis() {
     showToast('✅ 诊断结果已保存到错题');
     renderDetail(m);
     closeAIModal();
+}
+
+// ========== AI 诊断语音播报（TTS）==========
+function speakDiagnosis() {
+    if (!('speechSynthesis' in window)) { showToast('当前浏览器不支持语音播报'); return; }
+    const r = aiDiagResult;
+    if (!r) { showToast('暂无诊断结果可播报'); return; }
+
+    speechSynthesis.cancel();
+    const text = [
+        r.summary,
+        '错误原因：' + r.cause,
+        r.explanation ? '讲解：' + r.explanation : '',
+        r.tips && r.tips.length ? '易错口诀：' + r.tips.join('，') : ''
+    ].filter(Boolean).join('。');
+
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'zh-CN';
+    u.rate = 1;
+    // 尽量选用中文语音
+    const zhVoice = speechSynthesis.getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith('zh'));
+    if (zhVoice) u.voice = zhVoice;
+    speechSynthesis.speak(u);
+    showToast('🔊 正在播报讲解...');
+}
+
+function stopDiagnosisSpeech() {
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
 }
 
 // 启动应用

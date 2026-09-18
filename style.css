@@ -2496,3 +2496,296 @@ body {
     font-size: 9px;
     color: #92400e;
 }
+
+/* ========== 学习积分与等级 ========== */
+.points-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+}
+
+.points-main {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.points-num {
+    font-size: 30px;
+    font-weight: 800;
+    color: #f59e0b;
+    line-height: 1;
+}
+
+.points-unit {
+    font-size: 13px;
+    font-weight: 600;
+    color: #b45309;
+    margin-left: 2px;
+}
+
+.points-identity {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.points-level-icon {
+    font-size: 28px;
+    line-height: 1;
+}
+
+.points-level-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.points-tip {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.points-level-line {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 10px;
+    margin-bottom: 4px;
+}
+
+.points-track {
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.points-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+
+/* ========== 错题趋势折线图 ========== */
+.trend-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.trend-tab {
+    padding: 5px 14px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--card);
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.trend-tab.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+.trend-legend {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 8px;
+}
+
+.trend-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.legend-line {
+    width: 14px;
+    height: 3px;
+    border-radius: 2px;
+    display: inline-block;
+}
+
+.trend-grid {
+    stroke: #e5e7eb;
+    stroke-width: 1;
+}
+
+.trend-y {
+    font-size: 10px;
+    fill: #9ca3af;
+}
+
+.trend-x {
+    font-size: 10px;
+    fill: #9ca3af;
+}
+
+/* ========== 错题日历回顾 ========== */
+.cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 10px 0 8px;
+}
+
+.cal-nav {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.cal-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.cal-cell {
+    position: relative;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text);
+    transition: background 0.2s;
+}
+
+.cal-cell.empty {
+    cursor: default;
+}
+
+.cal-cell.has {
+    background: #eef2ff;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.cal-cell.today {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+}
+
+.cal-cell:hover {
+    background: #e0e7ff;
+}
+
+.cal-day-num {
+    line-height: 1;
+}
+
+.cal-day-dot {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    font-size: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cal-day-list {
+    margin-top: 12px;
+}
+
+.cal-day-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.cal-day-empty {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 10px 0;
+}
+
+.cal-day-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cal-day-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.cal-day-item:active {
+    background: #f3f4f6;
+}
+
+.cal-day-item-title {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cal-day-item-status {
+    font-size: 13px;
+}
+
+/* AI 诊断弹窗动作按钮横向排布 */
+.diag-actions {
+    flex-wrap: wrap;
+}
+
+.diag-actions .practice-quiz-btn {
+    min-width: 0;
+}
+
+.diag-actions .practice-quiz-btn-secondary {
+    background: #f3f4f6;
+    color: var(--text);
+    border: 1px solid var(--border);
+}

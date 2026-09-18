@@ -44,6 +44,7 @@
                 <span class="stat-label">已掌握</span>
             </div>
         </div>
+        <div class="points-card" id="pointsCard"></div>
         <div class="streak-bar" id="streakBar"></div>
         <div class="filter-bar">
             <select id="filterLang" class="filter-select">
@@ -341,6 +342,38 @@
             </div>
             <div id="radarSvg"></div>
         </div>
+
+        <div class="stats-card">
+            <h3 class="stats-card-title">📈 错题趋势</h3>
+            <div class="trend-tabs">
+                <button class="trend-tab active" data-range="week" onclick="setTrendRange('week')">按周</button>
+                <button class="trend-tab" data-range="month" onclick="setTrendRange('month')">按月</button>
+            </div>
+            <div class="trend-legend">
+                <span class="trend-legend-item"><i class="legend-line" style="background:#4f46e5"></i>新增错题</span>
+                <span class="trend-legend-item"><i class="legend-line" style="background:#22c55e"></i>已掌握</span>
+            </div>
+            <div class="stats-empty" id="statsTrendEmpty" style="display:none">
+                <p class="empty-text">暂无错题数据</p>
+                <p class="empty-hint">记录一些错题后这里会显示掌握趋势</p>
+            </div>
+            <div id="trendSvg"></div>
+        </div>
+
+        <div class="stats-card">
+            <h3 class="stats-card-title">📅 错题日历回顾</h3>
+            <p class="stats-card-sub">点击某天可回看当天记录的错题</p>
+            <div class="cal-header">
+                <button class="cal-nav" onclick="calMoveMonth(-1)">‹</button>
+                <span class="cal-title" id="calTitle"></span>
+                <button class="cal-nav" onclick="calMoveMonth(1)">›</button>
+            </div>
+            <div class="cal-weekdays">
+                <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+            </div>
+            <div class="cal-grid" id="calGrid"></div>
+            <div class="cal-day-list" id="calDayList"></div>
+        </div>
     </section>
 </main>
 
@@ -378,6 +411,9 @@
 
 <!-- Toast 提示 -->
 <div class="toast" id="toast"></div>
+
+<!-- 分享卡片渲染容器（隐藏用于下载） -->
+<div style="position:fixed;left:-9999px;top:0" id="shareCanvasHolder"></div>
 
 <script src="practice-data.js"></script>
 <script src="app.js"></script>
