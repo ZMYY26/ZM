@@ -695,6 +695,7 @@ function renderDetail(m) {
         ` : ''}
 
         <button class="ai-gen-btn" onclick="openAIModal('${m.id}')">🤖 AI 举一反三</button>
+        <button class="ai-gen-btn" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)" onclick="openAIDiagnosis('${m.id}')">🔍 AI 诊断</button>
         <div class="detail-footer">
             ${m.status !== 'mastered' ? `
                 <button class="action-btn success" onclick="markMastered('${m.id}')">✓ 已掌握</button>
@@ -2290,6 +2291,213 @@ function addAIToMistake(qid) {
     mistakes.push(newMistake);
     saveData();
     showToast('已加入错题本');
+}
+
+/* ========================================
+ * AI 错题诊断模块 - 分析错误原因并给出修正
+ * ======================================== */
+
+let aiDiagnoseMistake = null;   // 当前待诊断的错题
+let aiDiagResult = null;        // 诊断结果 { summary, cause, correctCode, explanation, tips[], lang }
+
+function openAIDiagnosis(mistakeId) {
+    const m = mistakes.find(x => x.id === mistakeId);
+    if (!m) { showToast('错题不存在'); return; }
+
+    const hasCode = (m.wrongCode || m.rightCode || '').trim();
+    if (!hasCode) { showToast('该错题没有代码，无法诊断'); return; }
+
+    aiDiagnoseMistake = m;
+    aiDiagResult = null;
+
+    $('aiModalTitle').textContent = '🔍 AI 诊断 · ' + (m.title || '').slice(0, 16);
+    $('aiModal').style.display = 'flex';
+
+    if (!aiConfig.apiKey || !aiConfig.baseURL || !aiConfig.model) {
+        renderDiagnosisBody({ type: 'no-config' });
+    } else {
+        runAIDiagnosis();
+    }
+}
+
+function buildDiagnosisPrompt(m) {
+    const langName = getLangName(m.lang);
+    const tags = (m.tags || []).join('、') || '综合';
+    const wrongCode = (m.wrongCode || '').trim() || '//（未提供错误代码）';
+    const rightCode = (m.rightCode || '').trim() || '//（未提供正确代码）';
+    const desc = (m.desc || '').trim() || '（未描述问题现象）';
+
+    return `# 角色
+你是一位资深的编程教学与代码审查专家，擅长用通俗、准确的语言帮助学生理解代码错误。
+
+# 任务
+针对下面这道编程学习者的错题，做一次"错题诊断"。诊断要一针见血指出根因，并给出可立即生效的修正方案。禁止复述题目，直接给结论。
+
+# 错题信息
+- 标题：${m.title || '未命名'}
+- 语言：${langName}
+- 考点标签：${tags}
+- 问题描述：${desc}
+
+错误代码：
+\`\`\`${m.lang || 'text'}
+${wrongCode}
+\`\`\`
+
+正确代码：
+\`\`\`${m.lang || 'text'}
+${rightCode}
+\`\`\`
+
+# 输出要求
+只输出单个严格 JSON 对象，不要输出其他任何内容。结构如下：
+{
+  "summary": "一句话概括这道错题犯了什么(不超过25字)",
+  "cause": "错误的根本原因，讲清楚为什么(2-4句，控制在100字内)",
+  "correctCode": "修正后的完整正确代码(纯代码，不要代码块标记，若原题有正确代码则以它为准并保持完整)",
+  "explanation": "给学生的讲解：正确代码相对错误代码改了什么、为什么这么改(80字内)",
+  "tips": ["易错口诀或要点1", "要点2", "要点3"],
+  "lang": "${m.lang || 'text'}"
+}
+
+约束：
+- correctCode 必须是完整的、可直接运行的代码，不要省略、不要用注释代替
+- tips 3 条，每条不超过 20 字，考场能默念
+- summary 和 explanation 不得照抄题目描述
+- 字符串禁止使用 \\n 之外的转义符，禁止嵌套 JSON`;
+}
+
+async function runAIDiagnosis() {
+    if (!aiDiagnoseMistake) return;
+    renderDiagnosisBody({ type: 'loading' });
+
+    const minLoading = new Promise(r => setTimeout(r, 800));
+    try {
+        const prompt = buildDiagnosisPrompt(aiDiagnoseMistake);
+        const [content] = await Promise.all([callLLM(prompt), minLoading]);
+        const result = parseDiagnosisJSON(content, aiDiagnoseMistake);
+        aiDiagResult = result;
+        renderDiagnosisBody({ type: 'success', result });
+    } catch (e) {
+        await minLoading;
+        console.error('AI 诊断失败:', e);
+        renderDiagnosisBody({ type: 'error', message: e.message || '未知错误' });
+    }
+}
+
+function parseDiagnosisJSON(content, m) {
+    let text = String(content || '').trim();
+    if (text.startsWith('```')) text = text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '');
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    if (start >= 0 && end > start) text = text.slice(start, end + 1);
+    const o = JSON.parse(text);
+    return {
+        summary: String(o.summary || '错误分析').slice(0, 50),
+        cause: String(o.cause || '未能提取原因，请结合代码自行判断').slice(0, 500),
+        correctCode: String(o.correctCode || m.rightCode || m.wrongCode || ''),
+        explanation: String(o.explanation || '').slice(0, 300),
+        tips: Array.isArray(o.tips) ? o.tips.map(String).slice(0, 3) : [],
+        lang: String(o.lang || m.lang || 'text')
+    };
+}
+
+function renderDiagnosisBody(state) {
+    const body = $('aiBody');
+    if (!body) return;
+
+    if (state.type === 'no-config') {
+        body.innerHTML = `
+            <div class="ai-empty">
+                <div class="ai-empty-icon">⚙️</div>
+                <p class="ai-empty-title">尚未配置 AI</p>
+                <p class="ai-empty-hint">请先填写 API 地址、Key 和模型名，再进行错题诊断</p>
+                <button class="practice-quiz-btn practice-quiz-btn-primary" style="max-width:200px;margin:12px auto 0" onclick="openAISettings()">⚙️ 立即配置</button>
+            </div>
+        `;
+        return;
+    }
+
+    if (state.type === 'loading') {
+        body.innerHTML = `
+            <div class="ai-loading">
+                <div class="ai-spinner"></div>
+                <p>AI 正在诊断代码错误…</p>
+                <p class="ai-loading-hint">基于「${escapeHtml(aiDiagnoseMistake?.title || '').slice(0, 24)}」分析根因</p>
+            </div>
+        `;
+        return;
+    }
+
+    if (state.type === 'error') {
+        body.innerHTML = `
+            <div class="ai-empty">
+                <div class="ai-empty-icon">⚠️</div>
+                <p class="ai-empty-title">诊断失败</p>
+                <p class="ai-empty-hint">${escapeHtml(state.message)}</p>
+                <div class="ai-empty-actions">
+                    <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="closeAIModal()">关闭</button>
+                    <button class="practice-quiz-btn practice-quiz-btn-primary" onclick="runAIDiagnosis()">重试</button>
+                    <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="openAISettings()">⚙️ 配置</button>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    if (state.type === 'success') {
+        const r = state.result;
+        const lang = hljs.getLanguage(r.lang) ? r.lang : 'text';
+        let correctHtml;
+        try {
+            correctHtml = r?.correctCode ? hljs.highlight(r.correctCode, { language: lang }).value : blankNote;
+        } catch (e) {
+            correctHtml = r?.correctCode ? escapeHtml(r.correctCode) : '';
+        }
+        const tipsHtml = (r.tips || []).length
+            ? `<div class="diag-tips"><div class="diag-label">🧠 易错口诀</div><ul>${r.tips.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`
+            : '';
+        body.innerHTML = `
+            <div class="diag-container">
+                <div class="diag-summary">${escapeHtml(r.summary)}</div>
+                <div class="diag-block">
+                    <div class="diag-label">💥 错误原因</div>
+                    <div class="diag-cause">${escapeHtml(r.cause).replace(/\n/g, '<br>')}</div>
+                </div>
+                <div class="diag-block">
+                    <div class="diag-label">✅ 修正后的代码</div>
+                    <pre class="diag-code"><code class="hljs language-${escapeHtml(lang)}">${correctHtml}</code></pre>
+                </div>
+                ${r.explanation ? `<div class="diag-block"><div class="diag-label">💡 讲解</div><div class="diag-explain">${escapeHtml(r.explanation).replace(/\n/g, '<br>')}</div></div>` : ''}
+                ${tipsHtml}
+                <div class="diag-actions">
+                    <button class="practice-quiz-btn practice-quiz-btn-primary" onclick="applyDiagnosis()">📝 应用到错题</button>
+                    <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="closeAIModal()">完成</button>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// 一键把诊断结果写回错题（正确代码 / 笔记 / 标签 / 描述补全）
+function applyDiagnosis() {
+    if (!aiDiagnoseMistake || !aiDiagResult) return;
+    const m = aiDiagnoseMistake;
+    const r = aiDiagResult;
+
+    if (r.correctCode && !m.rightCode) m.rightCode = r.correctCode;
+    // 笔记追加诊断结论
+    const diagNote = `🧠 ${r.summary}\n💥 ${r.cause}\n✅ ${r.explanation}` + (r.tips?.length ? '\n🗝 ' + r.tips.join('；') : '');
+    m.note = m.note ? m.note + '\n\n---\n【AI 诊断】\n' + diagNote : diagNote;
+    if (r.tips?.length) {
+        const set = new Set((m.tags || []).concat(r.tips));
+        m.tags = [...set].slice(0, 6);
+    }
+
+    saveData();
+    showToast('✅ 诊断结果已保存到错题');
+    renderDetail(m);
+    closeAIModal();
 }
 
 // 启动应用
