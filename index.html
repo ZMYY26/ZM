@@ -21,6 +21,7 @@
     </div>
     <h1 class="header-title" id="pageTitle">代码错题集</h1>
     <div class="header-right">
+        <button class="icon-btn" id="themeToggleBtn" title="切换深色模式">🌙</button>
         <button class="icon-btn" id="searchBtn">🔍</button>
     </div>
 </header>
@@ -46,6 +47,13 @@
         </div>
         <div class="points-card" id="pointsCard"></div>
         <div class="streak-bar" id="streakBar"></div>
+        <div class="challenge-card" id="challengeCard" onclick="openChallenge()">
+            <div class="challenge-card-info">
+                <div class="challenge-card-title">🎯 今日挑战</div>
+                <div class="challenge-card-sub" id="challengeCardSub">随机抽考，检验复习成果</div>
+            </div>
+            <span class="challenge-card-go">→</span>
+        </div>
         <div class="filter-bar">
             <select id="filterLang" class="filter-select">
                 <option value="">全部语言</option>
@@ -160,6 +168,10 @@
                     <button type="button" class="upload-btn" id="uploadBtn">
                         <span class="upload-icon">📷</span>
                         <span>拍照/选择图片</span>
+                    </button>
+                    <button type="button" class="upload-btn" id="ocrEntryBtn" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)">
+                        <span class="upload-icon">🏷</span>
+                        <span>OCR 拍照识别</span>
                     </button>
                     <div class="image-preview" id="imagePreview"></div>
                 </div>
@@ -338,6 +350,28 @@
         </div>
 
         <div class="stats-card">
+            <h3 class="stats-card-title">🏅 成就勋章</h3>
+            <p class="stats-card-sub">坚持学习，解锁更多成就</p>
+            <div class="achievement-summary">
+                <span>已解锁 <b id="achievementUnlockedNum">0</b> / <span id="achievementTotalNum">0</span></span>
+                <span id="achievementProgressText"></span>
+            </div>
+            <div class="achievement-grid" id="achievementGrid"></div>
+        </div>
+
+        <div class="stats-card">
+            <h3 class="stats-card-title">⏰ 复习提醒</h3>
+            <p class="stats-card-sub">到点提醒当天待复习的错题（本机通知）</p>
+            <div class="reminder-row">
+                <span class="reminder-label">每日提醒</span>
+                <input type="time" id="reminderTime" class="reminder-input" value="20:00">
+                <div class="switch" id="reminderSwitch" onclick="toggleReminder()"></div>
+            </div>
+            <div class="reminder-tip" id="reminderTip">开启后，每天指定时间若打开本应用且有待复习错题，会弹出通知提醒。</div>
+            <button class="mini-btn" style="margin-top:8px" onclick="sendTestReminder()">🔔 发送测试提醒</button>
+        </div>
+
+        <div class="stats-card">
             <h3 class="stats-card-title">🔥 复习热力图</h3>
             <p class="stats-card-sub" id="statsHeatTitle">加载中...</p>
             <div class="heatmap-grid" id="heatmapGrid"></div>
@@ -399,15 +433,60 @@
 
         <div class="stats-card">
             <h3 class="stats-card-title">🗂 数据管理</h3>
-            <p class="stats-card-sub">导出错题 PDF 打印复习，或备份/恢复全部数据</p>
+            <p class="stats-card-sub">导出错题 PDF 打印复习，或备份/恢复/云端同步数据</p>
             <div class="data-mgmt-btns">
                 <button class="ai-gen-btn" style="margin-right:8px" onclick="exportDataPDF()">🖨 导出 PDF</button>
                 <button class="ai-gen-btn" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)" onclick="exportBackup()">💾 备份 JSON</button>
                 <button class="ai-gen-btn" style="background:linear-gradient(135deg,#22c55e,#14b8a6)" onclick="document.getElementById('backupFile').click()">📥 恢复备份</button>
+                <button class="ai-gen-btn" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)" onclick="openSyncModal()">☁️ 云端同步</button>
             </div>
             <input type="file" id="backupFile" accept=".json,application/json" style="display:none" onchange="importBackup(this)">
         </div>
     </section>
+
+    <!-- 随机抽考挑战弹窗 -->
+    <div class="modal-overlay" id="challengeModal" style="display:none">
+        <div class="modal-content challenge-modal-content">
+            <div class="practice-quiz-header">
+                <span class="knowledge-modal-title">🎯 随机抽考挑战</span>
+                <button class="icon-btn" id="closeChallengeModal" style="background:#eef2ff;color:#4f46e5">✕</button>
+            </div>
+            <div class="challenge-body" id="challengeBody"></div>
+        </div>
+    </div>
+
+    <!-- 分享弹窗 -->
+    <div class="modal-overlay" id="shareModal" style="display:none">
+        <div class="modal-content share-modal-content">
+            <div class="share-modal-title-row">
+                <span class="knowledge-modal-title">📤 分享错题</span>
+                <button class="icon-btn" id="closeShareModal" style="background:#eef2ff;color:#4f46e5">✕</button>
+            </div>
+            <div class="share-options" id="shareOptions"></div>
+        </div>
+    </div>
+
+    <!-- OCR 识别录入弹窗 -->
+    <div class="modal-overlay" id="ocrModal" style="display:none">
+        <div class="modal-content ocr-modal-content">
+            <div class="practice-quiz-header">
+                <span class="knowledge-modal-title">🏷 OCR 拍照识别录入</span>
+                <button class="icon-btn" id="closeOcrModal" style="background:#eef2ff;color:#4f46e5">✕</button>
+            </div>
+            <div class="ocr-body" id="ocrBody"></div>
+        </div>
+    </div>
+
+    <!-- 云端同步弹窗 -->
+    <div class="modal-overlay" id="syncModal" style="display:none">
+        <div class="modal-content sync-modal-content">
+            <div class="practice-quiz-header">
+                <span class="knowledge-modal-title">☁️ 云端同步</span>
+                <button class="icon-btn" id="closeSyncModal" style="background:#eef2ff;color:#4f46e5">✕</button>
+            </div>
+            <div class="sync-body" id="syncBody"></div>
+        </div>
+    </div>
 </main>
 
 <!-- 悬浮添加按钮 -->

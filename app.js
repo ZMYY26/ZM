@@ -200,6 +200,8 @@ function saveData() {
             console.error('保存数据失败:', e);
         }
     }
+    // 云端自动同步（若已开启并配置）
+    maybeAutoSync();
 }
 
 // ========== 复习计划计算 ==========
@@ -280,13 +282,14 @@ function updateHeader(pageId) {
 
 function refreshCurrentPage() {
     switch (currentPage) {
-        case 'pageHome': renderMistakeList(); renderStreak(); renderPoints(); break;
+        case 'pageHome': renderMistakeList(); renderStreak(); renderPoints(); renderChallengeCard(); break;
         case 'pageCategory': renderCategory(); break;
         case 'pageReview': renderReview(); break;
         case 'pageKnowledge': renderKnowledge(); break;
         case 'pagePractice': renderPractice(); break;
-        case 'pageStats': renderStats(); break;
+        case 'pageStats': renderStats(); renderAchievements(); break;
     }
+    checkAchievements(false);
 }
 
 // ========== 渲染错题列表 ==========
@@ -663,10 +666,12 @@ function handleFormSubmit(event) {
             status: 'pending',
             reviewCount: 0,
             lastReviewAt: Date.now(),
-            createdAt: Date.now()
+            createdAt: Date.now(),
+            updatedAt: Date.now()
         });
         logActivity(); // 记录学习活动（统计热力图）
         addPoints(10, '记录新错题');
+        checkAchievements(true);
         showToast('添加成功');
     }
 
@@ -760,7 +765,7 @@ function renderDetail(m) {
         <button class="ai-gen-btn" onclick="openAIModal('${m.id}')">🤖 AI 举一反三</button>
         <button class="ai-gen-btn" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)" onclick="openAIDiagnosis('${m.id}')">🔍 AI 诊断</button>
         <button class="ai-gen-btn" style="background:linear-gradient(135deg,#F43F5E,#DB2777)" onclick="openAIChat('${m.id}')">💬 AI 对话</button>
-        <button class="ai-gen-btn" style="background:linear-gradient(135deg,#f59e0b,#ef4444)" onclick="shareMistakeCard('${m.id}')">📤 分享卡片</button>
+        <button class="ai-gen-btn" style="background:linear-gradient(135deg,#f59e0b,#ef4444)" onclick="openShareModal('${m.id}')">📤 分享</button>
         <div class="detail-footer">
             ${m.status !== 'mastered' ? `
                 <button class="action-btn success" onclick="markMastered('${m.id}')">✓ 已掌握</button>
@@ -947,8 +952,10 @@ function markMastered(id) {
     m.status = 'mastered';
     m.lastReviewAt = Date.now();
     m.reviewCount = REVIEW_INTERVALS.length;
+    m.updatedAt = Date.now();
     logActivity();
     addPoints(50, '掌握一道错题');
+    checkAchievements(true);
 
     saveData();
     showToast('🎉 恭喜！已标记为掌握');
@@ -963,6 +970,7 @@ function unmarkMastered(id) {
     m.status = 'pending';
     m.reviewCount = 0;
     m.lastReviewAt = Date.now();
+    m.updatedAt = Date.now();
     logActivity();
 
     saveData();
@@ -987,6 +995,7 @@ function markReviewed(id) {
     m.lastReviewAt = Date.now();
     m.reviewCount = (m.reviewCount || 0) + 1;
     m.reviewCheck = true;
+    m.updatedAt = Date.now();
     logActivity();
     addPoints(5, '完成一次复习');
 
@@ -1232,9 +1241,48 @@ function init() {
     loadPoints();
     logActivity();          // 每次打开 App 即打卡
 
+    // 加载主题与各功能配置
+    loadTheme();
+    loadRemindConfig();
+    loadAchievements();
+    loadChallengeStats();
+    loadSyncConfig();
+    checkAchievements(false);
+
     // 绑定导航
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => switchPage(item.dataset.page));
+    });
+
+    // 主题切换
+    $('themeToggleBtn').addEventListener('click', toggleTheme);
+
+    // 复习提醒时间修改
+    $('reminderTime').addEventListener('change', (e) => {
+        remindConfig.time = e.target.value || '20:00';
+        saveRemindConfig();
+        renderReminderUI();
+    });
+
+    // OCR 录入入口
+    $('ocrEntryBtn').addEventListener('click', openOcrModal);
+
+    // 挑战 / 分享 / OCR / 云同步弹窗事件
+    $('closeChallengeModal').addEventListener('click', closeChallengeModal);
+    $('challengeModal').addEventListener('click', (e) => {
+        if (e.target.id === 'challengeModal') closeChallengeModal();
+    });
+    $('closeShareModal').addEventListener('click', closeShareModal);
+    $('shareModal').addEventListener('click', (e) => {
+        if (e.target.id === 'shareModal') closeShareModal();
+    });
+    $('closeOcrModal').addEventListener('click', closeOcrModal);
+    $('ocrModal').addEventListener('click', (e) => {
+        if (e.target.id === 'ocrModal') closeOcrModal();
+    });
+    $('closeSyncModal').addEventListener('click', closeSyncModal);
+    $('syncModal').addEventListener('click', (e) => {
+        if (e.target.id === 'syncModal') closeSyncModal();
     });
 
     // 返回按钮
@@ -1335,12 +1383,27 @@ function init() {
             if ($('aiSettingsModal').style.display !== 'none') {
                 closeAISettings();
             }
+            if ($('challengeModal').style.display !== 'none') {
+                closeChallengeModal();
+            }
+            if ($('shareModal').style.display !== 'none') {
+                closeShareModal();
+            }
+            if ($('ocrModal').style.display !== 'none') {
+                closeOcrModal();
+            }
+            if ($('syncModal').style.display !== 'none') {
+                closeSyncModal();
+            }
         }
     });
 
     // 首次加载页面
     switchPage('pageHome');
     updateTagFilter();
+    renderReminderUI();
+    renderChallengeCard();
+    checkDailyReminder();
 
     // 检查是否有示例数据（首次使用时添加一些）
     if (mistakes.length === 0) {
@@ -2310,6 +2373,7 @@ function submitPracticeAnswer() {
     currentPracticeAnswered = true;
     renderPracticeQuestion();
     updatePracticeStats();
+    checkAchievements(true);
 
     showToast(correct ? '回答正确！' : '回答错误，看看解析吧');
 }
@@ -3378,6 +3442,11 @@ ${ctx.note || '（无）'}`
         pendingEl.remove();
         chatHistory.push({ role: 'assistant', content: reply });
         addChatMsg('assistant', reply);
+        // 对话计数（成就统计）
+        try {
+            localStorage.setItem('code_chat_count_v1', String(parseInt(localStorage.getItem('code_chat_count_v1') || '0', 10) + 1));
+        } catch (e) {}
+        checkAchievements(true);
     } catch (e) {
         pendingEl.remove();
         console.error('AI 对话失败:', e);
@@ -3695,4 +3764,880 @@ async function runPython(code) {
     }
 
     return { stdout, stderr, hasError };
+}
+
+/* ========================================
+ * #14 暗黑模式 / 主题切换
+ * ======================================== */
+const THEME_KEY = 'code_theme_v1';
+
+function applyTheme(theme) {
+    if (theme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        $('themeToggleBtn').textContent = '☀️';
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+        $('themeToggleBtn').textContent = '🌙';
+    }
+}
+
+function loadTheme() {
+    let theme = 'light';
+    try { theme = localStorage.getItem(THEME_KEY) || 'light'; } catch (e) {}
+    applyTheme(theme);
+}
+
+function toggleTheme() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const next = isDark ? 'light' : 'dark';
+    applyTheme(next);
+    try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+    showToast(next === 'dark' ? '🌙 已切换深色模式' : '☀️ 已切换浅色模式');
+}
+
+/* ========================================
+ * #7 复习提醒（本机通知）
+ * ======================================== */
+const REMIND_KEY = 'code_reminder_v1';
+let remindConfig = { enabled: false, time: '20:00', lastNotifiedDate: '' };
+
+function loadRemindConfig() {
+    try {
+        const d = localStorage.getItem(REMIND_KEY);
+        remindConfig = d ? { ...remindConfig, ...JSON.parse(d) } : remindConfig;
+    } catch (e) {}
+}
+
+function saveRemindConfig() {
+    try { localStorage.setItem(REMIND_KEY, JSON.stringify(remindConfig)); } catch (e) {}
+}
+
+function renderReminderUI() {
+    const sw = $('reminderSwitch');
+    const timeInput = $('reminderTime');
+    if (!sw) return;
+    sw.classList.toggle('on', !!remindConfig.enabled);
+    timeInput.value = remindConfig.time || '20:00';
+    const tip = $('reminderTip');
+    if (tip) {
+        if (remindConfig.enabled && 'Notification' in window && Notification.permission === 'granted') {
+            tip.textContent = '✅ 已开启：每天 ' + (remindConfig.time || '20:00') + ' 若有待复习错题将提醒你。';
+        } else if (remindConfig.enabled) {
+            tip.textContent = '已开启，但浏览器尚未授权通知权限，请点击右侧开关重新开启并允许通知。';
+        } else {
+            tip.textContent = '开启后，每天指定时间若打开本应用且有待复习错题，会弹出通知提醒。';
+        }
+    }
+}
+
+function pendingReviewCount() {
+    return mistakes.filter(m => getReviewStatus(m) === 'pending').length;
+}
+
+function toggleReminder() {
+    if (!remindConfig.enabled) {
+        // 尝试开启：先申请通知权限
+        const doEnable = () => {
+            remindConfig.enabled = true;
+            saveRemindConfig();
+            renderReminderUI();
+            showToast('🔔 复习提醒已开启');
+        };
+        if ('Notification' in window) {
+            if (Notification.permission === 'granted') {
+                doEnable();
+            } else if (Notification.permission === 'denied') {
+                alert('浏览器已拒绝通知权限。请在浏览器设置中允许本网站的通知后重试。');
+                renderReminderUI();
+            } else {
+                Notification.requestPermission().then(p => {
+                    if (p === 'granted') { doEnable(); }
+                    else { showToast('未获得通知权限，提醒无法开启'); renderReminderUI(); }
+                });
+            }
+        } else {
+            showToast('当前浏览器不支持通知');
+        }
+    } else {
+        remindConfig.enabled = false;
+        saveRemindConfig();
+        renderReminderUI();
+        showToast('复习提醒已关闭');
+    }
+}
+
+function sendLocalNotice(title, body) {
+    try {
+        const n = new Notification(title, {
+            body: body,
+            icon: './assets/icon.jpg',
+            badge: './assets/icon.jpg',
+            tag: 'review-reminder'
+        });
+        n.onclick = () => {
+            window.focus();
+            switchPage('pageReview');
+            n.close();
+        };
+    } catch (e) {
+        showToast(body, 3000);
+    }
+}
+
+function checkDailyReminder() {
+    if (!remindConfig.enabled) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const n = pendingReviewCount();
+    if (n === 0) return;
+    const today = todayKey();
+    if (remindConfig.lastNotifiedDate === today) return;
+    const now = new Date();
+    const [h, m] = (remindConfig.time || '20:00').split(':').map(Number);
+    if (now.getHours() < h || (now.getHours() === h && now.getMinutes() < m)) return;
+    remindConfig.lastNotifiedDate = today;
+    saveRemindConfig();
+    sendLocalNotice('📚 复习时间到', `你有 ${n} 道错题待复习，快来巩固一下吧！`);
+}
+
+function sendTestReminder() {
+    if ('Notification' in window && Notification.permission === 'granted') {
+        sendLocalNotice('📚 代码错题集', '这是一条测试提醒，提醒功能工作正常！');
+        showToast('测试提醒已发送');
+    } else if ('Notification' in window && Notification.permission !== 'denied') {
+        Notification.requestPermission().then(p => {
+            if (p === 'granted') {
+                sendLocalNotice('📚 代码错题集', '这是一条测试提醒，提醒功能工作正常！');
+                showToast('测试提醒已发送');
+            } else {
+                showToast('未获得通知权限');
+            }
+        });
+    } else {
+        showToast('当前浏览器不支持通知，无需提醒也能在复习页查看待复习列表', 3000);
+    }
+}
+
+/* ========================================
+ * #9 成就 / 勋章系统
+ * ======================================== */
+const ACH_KEY = 'code_achievements_v1';
+
+const ACHIEVEMENTS = [
+    { id: 'first_mistake', icon: '🌱', name: '初来乍到', desc: '记录第 1 道错题', check: c => c.total >= 1 },
+    { id: 'ten_mistakes', icon: '📚', name: '勤学苦练', desc: '错题总数达到 10', check: c => c.total >= 10 },
+    { id: 'fifty_mistakes', icon: '📦', name: '错题仓库', desc: '错题总数达到 50', check: c => c.total >= 50 },
+    { id: 'master_10', icon: '🏆', name: '融会贯通', desc: '掌握 10 道错题', check: c => c.mastered >= 10 },
+    { id: 'master_50', icon: '👑', name: '独孤求败', desc: '掌握 50 道错题', check: c => c.mastered >= 50 },
+    { id: 'streak_3', icon: '🔥', name: '小试牛刀', desc: '连续打卡 3 天', check: c => c.streak >= 3 },
+    { id: 'streak_7', icon: '⚡', name: '七日之火', desc: '连续打卡 7 天', check: c => c.streak >= 7 },
+    { id: 'streak_30', icon: '🌋', name: '持之以恒', desc: '连续打卡 30 天', check: c => c.streak >= 30 },
+    { id: 'practice_20', icon: '✏️', name: '练习达人', desc: '完成 20 道练习', check: c => c.practiceDone >= 20 },
+    { id: 'practice_100', icon: '🚀', name: '刷题狂魔', desc: '完成 100 道练习', check: c => c.practiceDone >= 100 },
+    { id: 'accuracy_90', icon: '🎯', name: '百发百中', desc: '练习正确率 ≥ 90%（至少 10 题）', check: c => c.practiceDone >= 10 && c.practiceCorrect / Math.max(1, c.practiceDone) >= 0.9 },
+    { id: 'review_5_day', icon: '🗓', name: '复习标兵', desc: '单日复习打卡 5 次', check: c => c.maxDailyActivity >= 5 },
+    { id: 'points_500', icon: '💎', name: '学习达人', desc: '积分达到 500', check: c => c.points >= 500 },
+    { id: 'points_1000', icon: '🌟', name: '学神降临', desc: '积分达到 1000', check: c => c.points >= 1000 },
+    { id: 'ai_chat_1', icon: '🤖', name: 'AI 伙伴', desc: '与 AI 编程伙伴对话 1 次', check: c => c.chatCount >= 1 },
+    { id: 'challenge_1', icon: '🎲', name: '迎接挑战', desc: '完成 1 次随机抽考', check: c => c.challengeCount >= 1 }
+];
+
+let unlockedAchievements = {};
+
+function loadAchievements() {
+    try {
+        const d = localStorage.getItem(ACH_KEY);
+        unlockedAchievements = d ? JSON.parse(d) : {};
+    } catch (e) { unlockedAchievements = {}; }
+}
+
+function saveAchievements() {
+    try { localStorage.setItem(ACH_KEY, JSON.stringify(unlockedAchievements)); } catch (e) {}
+}
+
+function buildAchievementContext() {
+    const done = Object.values(practiceRecords || {});
+    return {
+        total: mistakes.length,
+        mastered: mistakes.filter(m => m.status === 'mastered').length,
+        streak: calcStreak ? calcStreak() : 0,
+        practiceDone: done.filter(r => r.done).length,
+        practiceCorrect: done.filter(r => r.done && r.correct).length,
+        maxDailyActivity: Math.max(0, ...Object.values(activityLog || {})),
+        points: userPoints || 0,
+        chatCount: parseInt(localStorage.getItem('code_chat_count_v1') || '0', 10),
+        challengeCount: (challengeStats && challengeStats.count) || 0
+    };
+}
+
+function checkAchievements(showNewToast = true) {
+    const ctx = buildAchievementContext();
+    let newUnlocks = [];
+    ACHIEVEMENTS.forEach(a => {
+        if (!unlockedAchievements[a.id] && a.check(ctx)) {
+            unlockedAchievements[a.id] = Date.now();
+            newUnlocks.push(a);
+        }
+    });
+    if (newUnlocks.length) {
+        saveAchievements();
+        if (showNewToast) {
+            newUnlocks.forEach(a => showToast(`🏅 解锁成就：${a.icon} ${a.name}`, 2500));
+        }
+    }
+}
+
+function renderAchievements() {
+    const grid = $('achievementGrid');
+    if (!grid) return;
+    const unlocked = Object.keys(unlockedAchievements).length;
+    $('achievementUnlockedNum').textContent = unlocked;
+    $('achievementTotalNum').textContent = ACHIEVEMENTS.length;
+    $('achievementProgressText').textContent = Math.round(unlocked / ACHIEVEMENTS.length * 100) + '%';
+    grid.innerHTML = ACHIEVEMENTS.map(a => {
+        const isUnlocked = !!unlockedAchievements[a.id];
+        const time = unlockedAchievements[a.id];
+        return `
+            <div class="achievement-item ${isUnlocked ? 'unlocked' : 'locked'}" title="${isUnlocked ? '解锁于 ' + new Date(time).toLocaleDateString() : '未解锁'}">
+                <div class="achievement-icon">${a.icon}</div>
+                <div class="achievement-name">${a.name}</div>
+                <div class="achievement-desc">${a.desc}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+/* ========================================
+ * #5 随机抽考挑战
+ * ======================================== */
+const CHALLENGE_KEY = 'code_challenge_stats_v1';
+let challengeStats = { best: 0, last: -1, count: 0 };
+let challengeState = null;   // { questions, idx, score, chosen }
+
+function loadChallengeStats() {
+    try {
+        const d = localStorage.getItem(CHALLENGE_KEY);
+        challengeStats = d ? { ...challengeStats, ...JSON.parse(d) } : challengeStats;
+    } catch (e) {}
+}
+
+function saveChallengeStats() {
+    try { localStorage.setItem(CHALLENGE_KEY, JSON.stringify(challengeStats)); } catch (e) {}
+}
+
+function renderChallengeCard() {
+    const sub = $('challengeCardSub');
+    if (!sub) return;
+    if (challengeStats.count > 0) {
+        sub.textContent = `已挑战 ${challengeStats.count} 次 · 最佳 ${challengeStats.best} 分 · ${dailyMistakeTip()}`;
+    } else {
+        sub.textContent = '随机抽考，检验复习成果';
+    }
+}
+
+// 今日一题：按日期种子从待复习错题中选一道
+function dailyMistakeTip() {
+    const pending = mistakes.filter(m => m.status !== 'mastered');
+    if (!pending.length) return '错题已全部掌握';
+    const seed = parseInt(todayKey().replace(/-/g, ''), 10) || Date.now();
+    const m = pending[seed % pending.length];
+    return '今日一题：' + (m.title || '未命名').slice(0, 10);
+}
+
+function openDailyMistake() {
+    const pending = mistakes.filter(m => m.status !== 'mastered');
+    if (!pending.length) { showToast('错题已全部掌握 🎉'); return; }
+    const seed = parseInt(todayKey().replace(/-/g, ''), 10) || Date.now();
+    const m = pending[seed % pending.length];
+    closeChallengeModal();
+    viewMistake(m.id);
+}
+
+function openChallenge() {
+    $('challengeModal').style.display = 'flex';
+    renderChallengeSetup();
+}
+
+function closeChallengeModal() {
+    $('challengeModal').style.display = 'none';
+    challengeState = null;
+}
+
+function renderChallengeSetup() {
+    const body = $('challengeBody');
+    body.innerHTML = `
+        <div class="challenge-quote">💪 随机抽考，看看自己真正掌握了多少</div>
+        <div class="challenge-setup-row">
+            <label>题数</label>
+            <button class="challenge-opt-btn active" data-count="5" onclick="startChallenge(5)">5 题</button>
+            <button class="challenge-opt-btn" data-count="10" onclick="startChallenge(10)">10 题</button>
+            <button class="challenge-opt-btn" data-count="20" onclick="startChallenge(20)">20 题</button>
+        </div>
+        <div class="challenge-setup-row" style="margin-top:4px">
+            <label>范围</label>
+            <button class="challenge-opt-btn" onclick="startChallenge(5, true)">🎲 全题库随机</button>
+            <button class="challenge-opt-btn" onclick="startChallenge(5, false)">❌ 只考错过的题</button>
+        </div>
+        <button class="practice-quiz-btn practice-quiz-btn-primary" style="width:100%" onclick="openDailyMistake()">📖 今日一题（错题回顾）</button>
+    `;
+}
+
+// 只考错过的题：利用错题标签匹配练习题库 topic/category
+function questionsByMistakes(pool) {
+    const myTags = new Set();
+    mistakes.forEach(m => (m.tags || []).forEach(t => myTags.add(t)));
+    const matched = pool.filter(q => {
+        const qTags = [q.category, q.topic].filter(Boolean);
+        return qTags.some(t => myTags.has(t));
+    });
+    return matched.length >= 3 ? matched : pool;
+}
+
+function startChallenge(count, fullPool = true) {
+    const pool = getAllPracticeQuestions();
+    if (pool.length < 3) { showToast('题库题目不足，先做做练习或生成 AI 变式题吧'); return; }
+    const candidate = fullPool ? pool : questionsByMistakes(pool);
+    const shuffled = [...candidate].sort(() => Math.random() - 0.5);
+    const picked = shuffled.slice(0, Math.min(count, shuffled.length));
+    challengeState = { questions: picked, idx: 0, score: 0, chosen: -1, answered: false };
+    renderChallengeQuestion();
+}
+
+function renderChallengeQuestion() {
+    const s = challengeState;
+    if (!s) return;
+    const q = s.questions[s.idx];
+    const body = $('challengeBody');
+    const percent = Math.round(s.idx / s.questions.length * 100);
+    body.innerHTML = `
+        <div>
+            <div class="challenge-progress">
+                <span>第 ${s.idx + 1} / ${s.questions.length} 题</span>
+                <span>得分 ${s.score}</span>
+            </div>
+            <div class="challenge-progress-bar"><div class="challenge-progress-fill" style="width:${percent}%"></div></div>
+        </div>
+        <div>
+            <span class="challenge-q-cat">${escapeHtml(q.category || '综合')}${q.difficulty ? ' · ★'.repeat(Math.min(5, q.difficulty)) : ''}</span>
+            <div class="challenge-q-title">${escapeHtml(q.question)}</div>
+            ${q.code ? `<div class="challenge-q-code">${escapeHtml(q.code)}</div>` : ''}
+            <div class="challenge-options" id="challengeOptions">
+                ${q.options.map((opt, i) => `
+                    <button class="challenge-option" data-idx="${i}" onclick="challengeAnswer(${i})">${String.fromCharCode(65 + i)}. ${escapeHtml(opt)}</button>
+                `).join('')}
+            </div>
+            <div id="challengeFeedback"></div>
+        </div>
+    `;
+}
+
+function challengeAnswer(optIdx) {
+    const s = challengeState;
+    if (!s || s.answered) return;
+    s.answered = true;
+    s.chosen = optIdx;
+    const q = s.questions[s.idx];
+    const correct = optIdx === q.answer;
+
+    if (correct) {
+        s.score += 10;
+        logActivity();
+        addPoints(10, '挑战答对一题');
+    }
+
+    const options = $('challengeOptions');
+    const btns = options.querySelectorAll('.challenge-option');
+    btns.forEach((b, i) => {
+        b.disabled = true;
+        if (i === q.answer) b.classList.add('correct');
+        if (i === optIdx && !correct) b.classList.add('wrong');
+    });
+
+    const last = s.idx === s.questions.length - 1;
+    $('challengeFeedback').innerHTML = `
+        <div style="margin-top:12px;font-size:13px;color:var(--text-secondary);line-height:1.6">
+            ${correct ? '✅ 回答正确！' : '❌ 回答错误'}
+            ${q.explanation ? `<br>💡 ${escapeHtml(q.explanation)}` : ''}
+        </div>
+        <button class="practice-quiz-btn practice-quiz-btn-primary" style="width:100%;margin-top:12px" onclick="${last ? 'finishChallenge()' : 'challengeNext()'}">
+            ${last ? '查看结果' : '下一题 →'}
+        </button>
+    `;
+}
+
+function challengeNext() {
+    challengeState.idx += 1;
+    challengeState.answered = false;
+    challengeState.chosen = -1;
+    renderChallengeQuestion();
+}
+
+function finishChallenge() {
+    const s = challengeState;
+    const total = s.questions.length;
+    const score = s.score;
+    const full = score === total * 10;
+
+    challengeStats.count += 1;
+    challengeStats.last = score;
+    challengeStats.best = Math.max(challengeStats.best || 0, score);
+    saveChallengeStats();
+    addPoints(Math.round(score / 2), '完成随机抽考');
+    checkAchievements(true);
+
+    const percent = Math.round(score / (total * 10) * 100);
+    const quotes = [
+        [100, '🏆 满分！你是真正的学神！'],
+        [80, '🎉 非常棒，继续保持！'],
+        [60, '💪 还不错，错题再复习一下会更稳'],
+        [0, '📚 别灰心，翻开错题本温故知新吧']
+    ];
+    const quote = quotes.find(q => percent >= q[0])[1];
+
+    $('challengeBody').innerHTML = `
+        <div class="challenge-result-score">${score}<span style="font-size:16px;color:var(--text-secondary)"> / ${total * 10} 分</span></div>
+        <div class="challenge-result-detail">正确率 ${percent}% · 历史最佳 ${challengeStats.best} 分</div>
+        <div class="challenge-quote">${quote}</div>
+        <button class="practice-quiz-btn practice-quiz-btn-primary" style="width:100%" onclick="startChallenge(${total})">🔄 再来一轮</button>
+        <button class="practice-quiz-btn practice-quiz-btn-secondary" style="width:100%;margin-top:8px" onclick="closeChallengeModal()">关闭</button>
+    `;
+    renderChallengeCard();
+}
+
+/* ========================================
+ * #15 社交分享
+ * ======================================== */
+let shareMistakeId = null;
+
+function openShareModal(id) {
+    const m = mistakes.find(x => x.id === id);
+    if (!m) { showToast('错题不存在'); return; }
+    shareMistakeId = id;
+    const canNativeShare = !!(navigator.share);
+    $('shareOptions').innerHTML = `
+        ${canNativeShare ? `
+        <div class="share-option" onclick="shareNative()">
+            <div class="share-option-icon" style="background:#dcfce7">📤</div>
+            <div class="share-option-text">
+                <div class="share-option-name">系统分享</div>
+                <div class="share-option-hint">通过手机系统分享（含图片卡片）</div>
+            </div>
+        </div>` : ''}
+        <div class="share-option" onclick="shareDownloadCard()">
+            <div class="share-option-icon" style="background:#dbeafe">🖼</div>
+            <div class="share-option-text">
+                <div class="share-option-name">下载分享卡片</div>
+                <div class="share-option-hint">生成精美 PNG 图片，可发朋友圈 / 聊天群</div>
+            </div>
+        </div>
+        <div class="share-option" onclick="shareCopyText()">
+            <div class="share-option-icon" style="background:#fef3c7">📋</div>
+            <div class="share-option-text">
+                <div class="share-option-name">复制题目文本</div>
+                <div class="share-option-hint">复制到剪贴板，粘贴到聊天软件</div>
+            </div>
+        </div>
+        <div class="share-option" onclick="shareCopyLink()">
+            <div class="share-option-icon" style="background:#ede9fe">🔗</div>
+            <div class="share-option-text">
+                <div class="share-option-name">复制应用链接</div>
+                <div class="share-option-hint">把错题本应用分享给同学</div>
+            </div>
+        </div>
+        <div class="share-option" onclick="shareToWeibo()">
+            <div class="share-option-icon" style="background:#fee2e2">🐦</div>
+            <div class="share-option-text">
+                <div class="share-option-name">分享到微博</div>
+                <div class="share-option-hint">跳转微博网页发布</div>
+            </div>
+        </div>
+    `;
+    $('shareModal').style.display = 'flex';
+}
+
+function closeShareModal() {
+    $('shareModal').style.display = 'none';
+    shareMistakeId = null;
+}
+
+function shareNative() {
+    const m = mistakes.find(x => x.id === shareMistakeId);
+    if (!m) return;
+    const text = `【错题分享】${m.title}\n语言：${getLangName(m.lang)}\n考点：${(m.tags || []).join('、') || '综合'}\n\n${(m.wrongCode || '').slice(0, 200)}`;
+    navigator.share({ title: m.title, text: text, url: location.href })
+        .catch(() => {});
+}
+
+function shareDownloadCard() {
+    const m = mistakes.find(x => x.id === shareMistakeId);
+    if (!m) return;
+    showToast('正在生成分享卡片...');
+    setTimeout(() => generateShareCard(m), 100);
+}
+
+function shareCopyText() {
+    const m = mistakes.find(x => x.id === shareMistakeId);
+    if (!m) return;
+    const text = `【错题分享】${m.title}\n语言：${getLangName(m.lang)}\n考点：${(m.tags || []).join('、') || '综合'}\n\n❌ 错误代码:\n${m.wrongCode || '（无）'}\n✅ 正确代码:\n${m.rightCode || '（无）'}\n💡 错误分析:\n${m.note || '（无）'}`;
+    copyToClipboard(text, '题目文本已复制，快去粘贴分享吧！');
+}
+
+function shareCopyLink() {
+    copyToClipboard(location.href, '应用链接已复制！');
+}
+
+function shareToWeibo() {
+    const m = mistakes.find(x => x.id === shareMistakeId);
+    if (!m) return;
+    const text = `【编程错题】${m.title}（${getLangName(m.lang)} · ${(m.tags || []).join('、') || '综合'}）我用「代码错题集」记录并攻克了这道题！`;
+    const url = 'https://service.weibo.com/share/share.php?title=' + encodeURIComponent(text) + '&url=' + encodeURIComponent(location.href);
+    window.open(url, '_blank');
+}
+
+function copyToClipboard(text, successMsg) {
+    const done = () => showToast(successMsg, 2000);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+    } else {
+        fallbackCopy(text, done);
+    }
+}
+
+function fallbackCopy(text, cb) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); cb(); } catch (e) { showToast('复制失败，请手动复制'); }
+    ta.remove();
+}
+
+/* ========================================
+ * #12 OCR 拍照识别录入
+ * ======================================== */
+let ocrImageData = null;   // dataURL
+let ocrBusy = false;
+let tesseractLoadPromise = null;
+
+function openOcrModal() {
+    $('ocrModal').style.display = 'flex';
+    renderOcrBody();
+}
+
+function closeOcrModal() {
+    if (ocrBusy) { showToast('识别进行中，请稍候'); return; }
+    $('ocrModal').style.display = 'none';
+    ocrImageData = null;
+}
+
+function renderOcrBody() {
+    $('ocrBody').innerHTML = `
+        <div class="ocr-dropzone" onclick="document.getElementById('ocrFileInput').click()">
+            ${ocrImageData ? '<img class="ocr-preview-img" src="' + ocrImageData + '">' : '📸 点击选择题目截图 / 报错图片<br><span style="font-size:12px">支持中英文识别，首次识别需下载模型（约 20MB）</span>'}
+        </div>
+        <input type="file" id="ocrFileInput" accept="image/*" capture="environment" style="display:none" onchange="handleOcrFile(this)">
+        <button class="practice-quiz-btn practice-quiz-btn-primary" id="ocrStartBtn" ${ocrImageData ? '' : 'disabled style="opacity:0.5"'} onclick="runOCR()">🔍 开始识别</button>
+        <div class="ocr-progress" id="ocrProgress" style="display:none"><div class="ocr-progress-fill" id="ocrProgressFill"></div></div>
+        <div class="ocr-status" id="ocrStatus"></div>
+        <textarea class="ocr-result-textarea" id="ocrResultText" placeholder="识别结果将显示在这里，可手动编辑…" style="display:none"></textarea>
+        <button class="practice-quiz-btn practice-quiz-btn-secondary" id="ocrFillBtn" onclick="ocrFillForm()" style="display:none">📝 智能填入错题表单</button>
+        <div class="ocr-prefill-hint">识别代码可能出现少量字符偏差，填入后请人工校对。</div>
+    `;
+}
+
+function handleOcrFile(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (!/^image\//.test(file.type)) { showToast('请选择图片文件'); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+        ocrImageData = reader.result;
+        renderOcrBody();
+    };
+    reader.readAsDataURL(file);
+}
+
+function loadTesseract() {
+    if (window.Tesseract) return Promise.resolve(window.Tesseract);
+    if (tesseractLoadPromise) return tesseractLoadPromise;
+    tesseractLoadPromise = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+        s.onload = () => window.Tesseract ? resolve(window.Tesseract) : reject(new Error('Tesseract 加载失败'));
+        s.onerror = () => reject(new Error('OCR 引擎 CDN 加载失败，请检查网络'));
+        document.head.appendChild(s);
+    });
+    return tesseractLoadPromise;
+}
+
+async function runOCR() {
+    if (ocrBusy || !ocrImageData) return;
+    ocrBusy = true;
+    const startBtn = $('ocrStartBtn');
+    const progress = $('ocrProgress');
+    const fill = $('ocrProgressFill');
+    const status = $('ocrStatus');
+    const result = $('ocrResultText');
+    const fillBtn = $('ocrFillBtn');
+    startBtn.disabled = true;
+    progress.style.display = 'block';
+    result.style.display = 'none';
+    fillBtn.style.display = 'none';
+    status.textContent = '正在加载识别引擎…';
+
+    try {
+        const Tesseract = await loadTesseract();
+        status.textContent = '正在识别文字（首次较慢，请耐心等待）…';
+        const { data } = await Tesseract.recognize(ocrImageData, 'chi_sim+eng', {
+            logger: m => {
+                if (m.status === 'recognizing text') {
+                    fill.style.width = Math.round(m.progress * 100) + '%';
+                    status.textContent = '识别中 ' + Math.round(m.progress * 100) + '%';
+                }
+            }
+        });
+        status.textContent = '✓ 识别完成';
+        result.value = (data.text || '').trim();
+        result.style.display = 'block';
+        fillBtn.style.display = 'block';
+        showToast('识别完成，可编辑后填入表单');
+    } catch (e) {
+        console.error('OCR失败:', e);
+        status.textContent = '⚠️ 识别失败：' + (e.message || '未知错误');
+    } finally {
+        ocrBusy = false;
+        startBtn.disabled = !ocrImageData;
+        progress.style.display = 'none';
+    }
+}
+
+// 启发式拆分：疑似代码行 → 错误代码框；其余 → 题目描述
+function ocrFillForm() {
+    const text = ($('ocrResultText').value || '').trim();
+    if (!text) { showToast('没有可填入的识别内容'); return; }
+
+    const lines = text.split('\n');
+    const codeLines = [];
+    const textLines = [];
+    lines.forEach(line => {
+        const isCode = /[{};()=<>\[\]()]|\b(int|var|let|const|def|return|for|while|if|else|print|printf|cout)\b|^\s{2,}/.test(line)
+            || line.length > 60;
+        (isCode ? codeLines : textLines).push(line);
+    });
+
+    if ($('inputDesc').value.trim() === '' && textLines.length) {
+        $('inputDesc').value = textLines.join('\n').trim();
+    } else if (textLines.length) {
+        $('inputNote').value = ($('inputNote').value ? $('inputNote').value + '\n\n' : '') + '【OCR 识别】\n' + textLines.join('\n').trim();
+    }
+
+    if (codeLines.length) {
+        const code = codeLines.join('\n').trim();
+        if ($('inputWrongCode').value.trim() === '') {
+            $('inputWrongCode').value = code;
+        } else {
+            $('inputRightCode').value = ($('inputRightCode').value ? $('inputRightCode').value + '\n\n' : '') + code;
+        }
+    }
+
+    closeOcrModal();
+    switchPage('pageEdit');
+    showToast('已填入表单，请校对后保存');
+}
+
+/* ========================================
+ * #1 错题云同步（GitHub Gist）
+ * ======================================== */
+const SYNC_KEY = 'code_sync_config_v1';
+const SYNC_FILENAME = 'code-mistake-book-backup.json';
+let syncConfig = { token: '', gistId: '', autoSync: false, lastSyncAt: 0, user: '' };
+let autoSyncTimer = null;
+
+function loadSyncConfig() {
+    try {
+        const d = localStorage.getItem(SYNC_KEY);
+        syncConfig = d ? { ...syncConfig, ...JSON.parse(d) } : syncConfig;
+    } catch (e) {}
+}
+
+function saveSyncConfig() {
+    try { localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); } catch (e) {}
+}
+
+function openSyncModal() {
+    $('syncModal').style.display = 'flex';
+    renderSyncBody();
+}
+
+function closeSyncModal() {
+    $('syncModal').style.display = 'none';
+}
+
+function renderSyncBody(statusHtml = '') {
+    const lastText = syncConfig.lastSyncAt ? '上次同步：' + new Date(syncConfig.lastSyncAt).toLocaleString() : '尚未同步过';
+    $('syncBody').innerHTML = `
+        <div class="ai-settings-tip" style="font-size:12px;color:var(--text-secondary);line-height:1.6">
+            ☁️ 通过 GitHub Gist 把错题数据同步到云端，换设备也能恢复；支持多设备合并。
+            Token 仅保存在本机 localStorage 中，不会上传给任何第三方。
+        </div>
+        <div class="form-group">
+            <label class="form-label">GitHub Token（需勾选 gist 权限）</label>
+            <input type="password" id="syncToken" class="form-input" placeholder="ghp_..." value="${escapeHtml(syncConfig.token)}">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Gist ID（留空则自动创建）</label>
+            <input type="text" id="syncGistId" class="form-input" placeholder="留空自动创建" value="${escapeHtml(syncConfig.gistId)}">
+        </div>
+        <div class="reminder-row">
+            <span class="reminder-label">自动同步（保存错题时静默上传）</span>
+            <div class="switch ${syncConfig.autoSync ? 'on' : ''}" id="syncAutoSwitch" onclick="toggleAutoSync()"></div>
+        </div>
+        <div class="sync-status ${syncConfig.user ? 'ok' : ''}" id="syncStatus">${statusHtml || (syncConfig.user ? '✅ 已连接 GitHub 账号：' + escapeHtml(syncConfig.user) : '💡 填写 Token 后先点击「检测连接」')}</div>
+        <button class="practice-quiz-btn practice-quiz-btn-primary" onclick="saveSyncInputs(); syncTest()">🔌 检测连接</button>
+        <button class="practice-quiz-btn practice-quiz-btn-primary" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)" onclick="saveSyncInputs(); syncPush()">☁️ 立即备份上传</button>
+        <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="saveSyncInputs(); syncPull(false)">📥 云端下载（合并到本地）</button>
+        <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="saveSyncInputs(); syncPull(true)">♻️ 云端覆盖本地</button>
+        <div style="font-size:12px;color:var(--text-secondary)">${lastText}</div>
+    `;
+}
+
+function saveSyncInputs() {
+    syncConfig.token = ($('syncToken') ? $('syncToken').value.trim() : syncConfig.token);
+    syncConfig.gistId = ($('syncGistId') ? $('syncGistId').value.trim() : syncConfig.gistId);
+    saveSyncConfig();
+}
+
+function toggleAutoSync() {
+    syncConfig.autoSync = !syncConfig.autoSync;
+    saveSyncConfig();
+    renderSyncBody();
+    showToast(syncConfig.autoSync ? '已开启自动同步' : '已关闭自动同步');
+}
+
+function setSyncStatus(msg, ok) {
+    const el = $('syncStatus');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'sync-status ' + (ok ? 'ok' : '');
+    if (!ok && ok !== null) el.className = 'sync-status err';
+    if (ok === null) el.className = 'sync-status';
+}
+
+// GitHub API 封装：Bearer 失败时回退 classic token 方式
+async function syncGh(method, path, body) {
+    const headers = {
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28'
+    };
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    const doFetch = (authHeader) => fetch('https://api.github.com' + path, {
+        method, headers: { ...headers, ...(authHeader ? { 'Authorization': authHeader } : {}) },
+        body: body !== undefined ? JSON.stringify(body) : undefined
+    });
+    let resp = await doFetch('Bearer ' + syncConfig.token);
+    if (resp.status === 401) resp = await doFetch('token ' + syncConfig.token);
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.message || ('HTTP ' + resp.status));
+    return data;
+}
+
+async function syncTest() {
+    if (!syncConfig.token) { setSyncStatus('请先填写 GitHub Token', false); return; }
+    setSyncStatus('正在连接 GitHub…', null);
+    try {
+        const user = await syncGh('GET', '/user');
+        syncConfig.user = user.login || '';
+        saveSyncConfig();
+        setSyncStatus('✅ 连接成功，当前账号：' + syncConfig.user, true);
+    } catch (e) {
+        syncConfig.user = '';
+        saveSyncConfig();
+        setSyncStatus('❌ 连接失败：' + (e.message || '未知错误'), false);
+    }
+}
+
+function buildSyncPayload() {
+    return {
+        app: 'code-mistake-book',
+        version: 1,
+        updatedAt: Date.now(),
+        mistakes: mistakes
+    };
+}
+
+async function syncPush() {
+    if (!syncConfig.token) { setSyncStatus('请先填写 GitHub Token', false); return; }
+    setSyncStatus('正在上传到云端…', null);
+    try {
+        const payload = buildSyncPayload();
+        if (syncConfig.gistId) {
+            await syncGh('PATCH', '/gists/' + syncConfig.gistId, {
+                files: { [SYNC_FILENAME]: { content: JSON.stringify(payload) } }
+            });
+        } else {
+            const gist = await syncGh('POST', '/gists', {
+                description: '代码错题集 - 云端同步备份（由应用自动管理）',
+                public: false,
+                files: { [SYNC_FILENAME]: { content: JSON.stringify(payload) } }
+            });
+            syncConfig.gistId = gist.id;
+        }
+        syncConfig.lastSyncAt = Date.now();
+        saveSyncConfig();
+        setSyncStatus('✅ 备份成功！共 ' + mistakes.length + ' 道错题已上传（' + new Date().toLocaleTimeString() + '）', true);
+        showToast('☁️ 云端备份成功');
+    } catch (e) {
+        setSyncStatus('❌ 上传失败：' + (e.message || '未知错误'), false);
+    }
+}
+
+// merge: true 云端覆盖本地；false 与本地按 updatedAt 合并
+async function syncPull(overwrite) {
+    if (!syncConfig.token || !syncConfig.gistId) { setSyncStatus('请先填写 Token，并至少成功备份过一次', false); return; }
+    setSyncStatus('正在从云端下载…', null);
+    try {
+        const gist = await syncGh('GET', '/gists/' + syncConfig.gistId);
+        const file = gist.files && gist.files[SYNC_FILENAME];
+        if (!file) { setSyncStatus('云端未找到备份文件', false); return; }
+        const data = JSON.parse(file.content);
+        const remote = Array.isArray(data.mistakes) ? data.mistakes : (Array.isArray(data) ? data : []);
+        let next;
+        if (overwrite) {
+            next = remote;
+        } else {
+            // 合并：按 id 去重，updatedAt 新者胜（新设备上本地较旧）
+            const map = new Map();
+            [...remote, ...mistakes].forEach(m => {
+                const exist = map.get(m.id);
+                if (!exist || (m.updatedAt || m.createdAt || 0) > (exist.updatedAt || exist.createdAt || 0)) {
+                    map.set(m.id, m);
+                }
+            });
+            next = [...map.values()].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        }
+        mistakes = next;
+        saveData();
+        syncConfig.lastSyncAt = Date.now();
+        saveSyncConfig();
+        setSyncStatus('✅ 已恢复 ' + mistakes.length + ' 道错题' + (overwrite ? '（云端数据已覆盖本地）' : '（已与本地合并）'), true);
+        showToast('☁️ 云端数据已恢复到本地');
+        refreshCurrentPage();
+    } catch (e) {
+        setSyncStatus('❌ 下载失败：' + (e.message || '未知错误'), false);
+    }
+}
+
+// 自动同步：保存数据后静默推送（防抖）
+function maybeAutoSync() {
+    if (!syncConfig.autoSync || !syncConfig.token || !syncConfig.gistId) return;
+    if (autoSyncTimer) clearTimeout(autoSyncTimer);
+    autoSyncTimer = setTimeout(() => {
+        syncGh('PATCH', '/gists/' + syncConfig.gistId, {
+            files: { [SYNC_FILENAME]: { content: JSON.stringify(buildSyncPayload()) } }
+        }).then(() => {
+            syncConfig.lastSyncAt = Date.now();
+            saveSyncConfig();
+        }).catch(err => console.warn('自动同步失败:', err));
+    }, 2500);
 }
