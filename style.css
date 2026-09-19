@@ -2789,3 +2789,74 @@ body {
     color: var(--text);
     border: 1px solid var(--border);
 }
+
+/* ========== Markdown 笔记渲染 ========== */
+.markdown-body {
+    line-height: 1.7;
+    word-break: break-word;
+}
+
+.markdown-body h4, .markdown-body h5, .markdown-body h6 {
+    margin: 10px 0 4px;
+    color: var(--text);
+    font-weight: 700;
+}
+
+.markdown-body h4 { font-size: 16px; }
+.markdown-body h5 { font-size: 15px; }
+.markdown-body h6 { font-size: 14px; }
+
+.markdown-body p {
+    margin: 4px 0;
+}
+
+.markdown-body code {
+    background: #f1f5f9;
+    color: #be185d;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: Menlo, Consolas, monospace;
+}
+
+.markdown-body pre {
+    background: #1e293b;
+    color: #e2e8f0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 6px 0;
+    font-size: 12px;
+    line-height: 1.5;
+    font-family: Menlo, Consolas, monospace;
+}
+
+.markdown-body pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+}
+
+.markdown-body li {
+    margin: 3px 0 3px 20px;
+    list-style: disc;
+}
+
+.markdown-body a {
+    color: var(--primary);
+    text-decoration: underline;
+}
+
+.markdown-body hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 8px 0;
+}
+
+/* ========== 数据管理按钮区 ========== */
+.data-mgmt-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}

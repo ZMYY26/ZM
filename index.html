@@ -374,6 +374,17 @@
             <div class="cal-grid" id="calGrid"></div>
             <div class="cal-day-list" id="calDayList"></div>
         </div>
+
+        <div class="stats-card">
+            <h3 class="stats-card-title">🗂 数据管理</h3>
+            <p class="stats-card-sub">导出错题 PDF 打印复习，或备份/恢复全部数据</p>
+            <div class="data-mgmt-btns">
+                <button class="ai-gen-btn" style="margin-right:8px" onclick="exportDataPDF()">🖨 导出 PDF</button>
+                <button class="ai-gen-btn" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)" onclick="exportBackup()">💾 备份 JSON</button>
+                <button class="ai-gen-btn" style="background:linear-gradient(135deg,#22c55e,#14b8a6)" onclick="document.getElementById('backupFile').click()">📥 恢复备份</button>
+            </div>
+            <input type="file" id="backupFile" accept=".json,application/json" style="display:none" onchange="importBackup(this)">
+        </div>
     </section>
 </main>
 

@@ -117,6 +117,58 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// ========== 轻量 Markdown 渲染 ==========
+// 支持：标题、加粗、斜体、行内代码、代码块、有序/无序列表、链接、换行、分隔线
+function renderMarkdown(text) {
+    if (!text) return '';
+    let html = escapeHtml(String(text));
+
+    // 提取代码块，避免内部被其它规则污染
+    const codeBlocks = [];
+    html = html.replace(/```([\s\S]*?)```/g, (m, code) => {
+        codeBlocks.push(code.trim());
+        return '\u0000CODE' + (codeBlocks.length - 1) + '\u0000';
+    });
+
+    // 标题
+    html = html.replace(/^###\s+(.+)$/gm, '<h6>$1</h6>');
+    html = html.replace(/^##\s+(.+)$/gm, '<h5>$1</h5>');
+    html = html.replace(/^#\s+(.+)$/gm, '<h4>$1</h4>');
+
+    // 分隔线
+    html = html.replace(/^-{3,}$/gm, '<hr>');
+    html = html.replace(/^\*{3,}$/gm, '<hr>');
+
+    // 行内代码
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+    // 加粗
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    // 斜体
+    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+    // 链接 [text](url)
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+
+    // 无序列表
+    html = html.replace(/^(\s*)[-*]\s+(.+)$/gm, '<li>$2</li>');
+    // 有序列表
+    html = html.replace(/^(\s*)\d+\.\s+(.+)$/gm, '<li>$2</li>');
+
+    // 段落换行
+    html = html.split('\n').map(line => {
+        const t = line.trim();
+        if (!t) return '';
+        const isLi = t.startsWith('<li>') || t.startsWith('<h4>') || t.startsWith('<h5>') || t.startsWith('<h6>') || t.startsWith('<hr>');
+        return isLi ? t : `<p>${t}</p>`;
+    }).join('');
+
+    // 恢复代码块
+    html = html.replace(/\u0000CODE(\d+)\u0000/g, (m, i) => `<pre><code>${codeBlocks[+i].replace(/</g, '&lt;')}</code></pre>`);
+
+    return html;
+}
+
 // ========== 数据存储 ==========
 function loadData() {
     try {
@@ -691,7 +743,7 @@ function renderDetail(m) {
         ${m.note ? `
             <div class="detail-section">
                 <div class="detail-section-title">💡 错误分析</div>
-                <div class="detail-note">${escapeHtml(m.note)}</div>
+                <div class="detail-note markdown-body">${renderMarkdown(m.note)}</div>
             </div>
         ` : ''}
 
@@ -3101,6 +3153,127 @@ function speakDiagnosis() {
 
 function stopDiagnosisSpeech() {
     if ('speechSynthesis' in window) speechSynthesis.cancel();
+}
+
+// ========== 数据管理：PDF 导出 / JSON 备份恢复 ==========
+function formatDate(ts) {
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function buildLaTeXEsc(s) {
+    return String(s || '').replace(/([\\{}&%_#^$])/g, '\\$1');
+}
+
+function exportDataPDF() {
+    if (!mistakes.length) { showToast('暂无错题可导出'); return; }
+
+    const items = [...mistakes].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    const now = formatDate(Date.now());
+
+    // 每条错题转成文本
+    const blocks = items.map((m, i) => {
+        const lines = [];
+        lines.push(`错题 ${i + 1}：${m.title || '未命名'}`);
+        lines.push(`语言：${getLangName(m.lang)}    状态：${m.status === 'mastered' ? '已掌握' : '待复习'}`);
+        if (m.tags && m.tags.length) lines.push(`考点：${m.tags.join('、')}`);
+        lines.push('');
+        if (m.wrongCode) { lines.push('【错误代码】'); lines.push(m.wrongCode); lines.push(''); }
+        if (m.rightCode) { lines.push('【正确代码】'); lines.push(m.rightCode); lines.push(''); }
+        if (m.note) { lines.push('【错误分析】'); lines.push(m.note); lines.push(''); }
+        return lines.join('\n');
+    });
+
+    const content = `代码错题集复习资料\n导出自：${now}（共 ${items.length} 道错题）\n${'='.repeat(40)}\n\n` + blocks.join('\n\n' + '='.repeat(40) + '\n\n');
+
+    // 使用浏览器打印对话框生成 PDF
+    const win = window.open('', '_blank');
+    if (!win) { showToast('弹窗被拦截，请允许弹窗'); return; }
+    win.document.write(`<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+        <title>代码错题集复习资料</title>
+        <style>
+            body { font-family: "PingFang SC","Microsoft YaHei",sans-serif; padding: 24px; color: #222; }
+            h1 { font-size: 20px; margin-bottom: 4px; }
+            .meta { color: #666; font-size: 12px; margin-bottom: 16px; }
+            .block { margin: 20px 0; page-break-inside: avoid; }
+            .num { font-weight: bold; font-size: 16px; margin-bottom: 6px; color: #4f46e5; }
+            .info { font-size: 12px; color: #555; margin-bottom: 4px; }
+            .lbl { font-weight: bold; font-size: 13px; margin: 6px 0 2px; color: #333; }
+            pre { background: #f6f8fa; border: 1px solid #e5e7eb; padding: 8px 10px; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+            .note { white-space: pre-wrap; font-size: 13px; }
+            hr { border: none; border-top: 1px dashed #d1d5db; margin: 16px 0; }
+        </style>
+    </head><body>
+        <h1>代码错题集复习资料</h1>
+        <div class="meta">导出自：${now} · 共 ${items.length} 道错题</div>
+        ${items.map((m, i) => `
+            <div class="block">
+                <div class="num">错题 ${i + 1}：${buildLaTeXEsc(m.title || '未命名')}</div>
+                <div class="info">语言：${getLangName(m.lang)} ｜ 状态：${m.status === 'mastered' ? '已掌握' : '待复习'}${m.tags && m.tags.length ? ' ｜ 考点：' + m.tags.join('、') : ''}</div>
+                ${m.wrongCode ? `<div class="lbl">❌ 错误代码</div><pre>${buildLaTeXEsc(m.wrongCode)}</pre>` : ''}
+                ${m.rightCode ? `<div class="lbl">✅ 正确代码</div><pre>${buildLaTeXEsc(m.rightCode)}</pre>` : ''}
+                ${m.note ? `<div class="lbl">💡 错误分析</div><div class="note">${buildLaTeXEsc(m.note)}</div>` : ''}
+            </div>
+        `).join('<hr>')}
+    </body></html>`);
+    win.document.close();
+    // 等图片/字体渲染后调打印
+    setTimeout(() => { win.focus(); win.print(); }, 400);
+}
+
+function exportBackup() {
+    if (!mistakes.length) { showToast('暂无数据可备份'); return; }
+    const payload = {
+        app: 'code-mistake-book',
+        version: 1,
+        exportedAt: Date.now(),
+        mistakes: mistakes
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `错题集备份_${formatDate(Date.now())}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('✅ 已导出备份文件');
+}
+
+function importBackup(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const data = JSON.parse(e.target.result);
+            const list = Array.isArray(data) ? data : (Array.isArray(data.mistakes) ? data.mistakes : null);
+            if (!list) throw new Error('格式不正确');
+            const valid = list.filter(m => m && typeof m === 'object' && (m.title || m.wrongCode || m.rightCode || m.note));
+            if (!valid.length) throw new Error('没有有效的错题记录');
+
+            if (!confirm(`将用备份文件中的 ${valid.length} 道错题替换当前数据（当前 ${mistakes.length} 道），是否继续？`)) {
+                input.value = '';
+                return;
+            }
+            mistakes = valid;
+            saveData();
+            // 尝试一并恢复积分与打卡
+            if (data && typeof data === 'object' && data.points !== undefined) {
+                try { localStorage.setItem(POINTS_KEY, String(data.points)); userPoints = data.points; } catch (err) {}
+            }
+            renderPoints();
+            renderMistakeList();
+            showToast('✅ 恢复成功，数据已更新');
+        } catch (err) {
+            console.error('恢复失败:', err);
+            showToast('❌ 备份文件无效');
+        } finally {
+            input.value = '';
+        }
+    };
+    reader.readAsText(file);
 }
 
 // 启动应用
