@@ -278,6 +278,21 @@
         </div>
     </div>
 
+    <!-- AI 编程伙伴对话弹窗 -->
+    <div class="modal-overlay" id="chatModal" style="display:none">
+        <div class="modal-content chat-modal-content">
+            <div class="practice-quiz-header ai-modal-header">
+                <span id="chatModalTitle" class="knowledge-modal-title">💬 AI 对话</span>
+                <button class="icon-btn" id="closeChatModal" style="background:#eef2ff;color:#4f46e5">✕</button>
+            </div>
+            <div class="chat-body" id="chatBody"></div>
+            <div class="chat-input-bar">
+                <textarea id="chatInput" class="chat-textarea" rows="1" placeholder="输入你的问题，例如「为什么这里会越界？」"></textarea>
+                <button class="chat-send-btn" id="chatSendBtn">发送</button>
+            </div>
+        </div>
+    </div>
+
     <!-- AI 配置弹窗 -->
     <div class="modal-overlay" id="aiSettingsModal" style="display:none">
         <div class="modal-content ai-settings-content">
@@ -315,6 +330,13 @@
 
     <!-- 统计页 -->
     <section class="page" id="pageStats">
+        <div class="stats-card">
+            <h3 class="stats-card-title">🧭 本周 AI 复习计划</h3>
+            <p class="stats-card-sub">基于你的薄弱考点智能排期，点击条目开始复习</p>
+            <div class="review-plan-body" id="reviewPlanBody"></div>
+            <button class="ai-gen-btn" style="width:100%;margin-top:10px" onclick="renderReviewPlan()">🔄 生成/刷新复习计划</button>
+        </div>
+
         <div class="stats-card">
             <h3 class="stats-card-title">🔥 复习热力图</h3>
             <p class="stats-card-sub" id="statsHeatTitle">加载中...</p>

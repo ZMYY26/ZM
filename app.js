@@ -169,6 +169,16 @@ function renderMarkdown(text) {
     return html;
 }
 
+// ========== PWA：注册 Service Worker 实现离线支持 ==========
+function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        // 仅 HTTPS 或 localhost 生效
+        navigator.serviceWorker.register('./sw.js').catch((err) => {
+            console.warn('Service Worker 注册失败:', err);
+        });
+    }
+}
+
 // ========== 数据存储 ==========
 function loadData() {
     try {
@@ -749,6 +759,7 @@ function renderDetail(m) {
 
         <button class="ai-gen-btn" onclick="openAIModal('${m.id}')">🤖 AI 举一反三</button>
         <button class="ai-gen-btn" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)" onclick="openAIDiagnosis('${m.id}')">🔍 AI 诊断</button>
+        <button class="ai-gen-btn" style="background:linear-gradient(135deg,#F43F5E,#DB2777)" onclick="openAIChat('${m.id}')">💬 AI 对话</button>
         <button class="ai-gen-btn" style="background:linear-gradient(135deg,#f59e0b,#ef4444)" onclick="shareMistakeCard('${m.id}')">📤 分享卡片</button>
         <div class="detail-footer">
             ${m.status !== 'mastered' ? `
@@ -1269,6 +1280,9 @@ function init() {
     // 加载 AI 配置
     loadAIConfig();
 
+    // 注册 Service Worker（PWA 离线支持）
+    registerServiceWorker();
+
     // AI 举一反三弹窗事件
     $('closeAIModal').addEventListener('click', closeAIModal);
     $('aiModal').addEventListener('click', (e) => {
@@ -1280,6 +1294,16 @@ function init() {
     $('saveAISettings').addEventListener('click', handleSaveAISettings);
     $('aiSettingsModal').addEventListener('click', (e) => {
         if (e.target.id === 'aiSettingsModal') closeAISettings();
+    });
+
+    // AI 编程伙伴对话弹窗事件
+    $('closeChatModal').addEventListener('click', closeAIChat);
+    $('chatModal').addEventListener('click', (e) => {
+        if (e.target.id === 'chatModal') closeAIChat();
+    });
+    $('chatSendBtn').addEventListener('click', sendChatMessage);
+    $('chatInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
     });
 
     // 筛选
@@ -1304,6 +1328,9 @@ function init() {
             }
             if ($('aiModal').style.display !== 'none') {
                 closeAIModal();
+            }
+            if ($('chatModal').style.display !== 'none') {
+                closeAIChat();
             }
             if ($('aiSettingsModal').style.display !== 'none') {
                 closeAISettings();
@@ -1655,6 +1682,7 @@ function renderStats() {
     renderRadar();
     renderTrend();
     renderCalendar();
+    renderReviewPlan();
 }
 
 function renderHeatmap() {
@@ -3153,6 +3181,208 @@ function speakDiagnosis() {
 
 function stopDiagnosisSpeech() {
     if ('speechSynthesis' in window) speechSynthesis.cancel();
+}
+
+// ========== AI 复习计划：按薄弱考点生成本周复习清单 ==========
+function renderReviewPlan() {
+    const body = $('reviewPlanBody');
+    if (!body) return;
+
+    // 待复习错题
+    const pending = mistakes.filter(m => m.status !== 'mastered');
+
+    if (!pending.length) {
+        body.innerHTML = `
+            <div class="ai-empty" style="padding:12px 0">
+                <div class="ai-empty-icon">🎉</div>
+                <p class="ai-empty-title">全部掌握，无需复习</p>
+                <p class="ai-empty-hint">本周计划为空，继续保持！</p>
+            </div>
+        `;
+        return;
+    }
+
+    // 弱点权重：按未掌握错题的标签统计
+    const tagWeight = {};
+    pending.forEach(m => (m.tags || []).forEach(t => { tagWeight[t] = (tagWeight[t] || 0) + 1; }));
+
+    // 排序：弱点权重高优先，其次最后复习时间最久优先
+    const sorted = [...pending].sort((a, b) => {
+        const wa = (a.tags || []).reduce((s, t) => s + (tagWeight[t] || 0), 0);
+        const wb = (b.tags || []).reduce((s, t) => s + (tagWeight[t] || 0), 0);
+        if (wb !== wa) return wb - wa;
+        return (a.lastReviewAt || 0) - (b.lastReviewAt || 0);
+    });
+
+    // 本周日期（周一起）
+    const today = new Date();
+    const monday = new Date(today);
+    const dow = (today.getDay() + 6) % 7; // 周一=0
+    monday.setDate(today.getDate() - dow);
+    const dayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+
+    // 生成 7 天计划，循环分配
+    const plan = Array.from({ length: 7 }, () => []);
+    sorted.forEach((m, i) => plan[i % 7].push(m));
+
+    const rows = plan.map((items, dayIdx) => {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + dayIdx);
+        const dateLabel = `${d.getMonth() + 1}/${d.getDate()}`;
+        const isToday = dayIdx === dow;
+        const n = items.length;
+        return `
+            <div class="review-plan-day ${isToday ? 'is-today' : ''}">
+                <div class="review-plan-day-head">
+                    <span class="review-plan-day-name">${dayNames[dayIdx]} ${dateLabel}</span>
+                    ${isToday ? '<span class="review-plan-today-tag">今天</span>' : ''}
+                    <span class="review-plan-count">${n ? n + ' 题' : '休息'}</span>
+                </div>
+                ${n ? `<div class="review-plan-items">${items.map(m => `
+                    <div class="review-plan-item" onclick="openMistake('${m.id}')">
+                        <span class="review-plan-item-tag ${escapeHtml(m.tags?.[0] || '')}">${escapeHtml(m.tags?.[0] || '综合')}</span>
+                        <span class="review-plan-item-title">${escapeHtml(m.title || '未命名')}</span>
+                    </div>
+                `).join('')}</div>` : '<div class="review-plan-rest">无安排，好好休息 🌴</div>'}
+            </div>
+        `;
+    }).join('');
+
+    body.innerHTML = `
+        <div class="review-plan-tip">共 ${sorted.length} 道待复习错题，按薄弱考点智能排入本周</div>
+        ${rows}
+    `;
+}
+
+// ========== AI 编程伙伴对话 ==========
+let chatMistake = null;   // 当前对话的错题
+let chatHistory = [];     // 保存消息格式为 { role, content }
+
+function openAIChat(mistakeId) {
+    const m = mistakes.find(x => x.id === mistakeId);
+    if (!m) { showToast('错题不存在'); return; }
+    chatMistake = m;
+    chatHistory = [];
+    $('chatModalTitle').textContent = '💬 AI 对话 · ' + (m.title || '').slice(0, 16);
+    $('chatModal').style.display = 'flex';
+    renderChatBody();
+
+    if (!aiConfig.apiKey || !aiConfig.baseURL || !aiConfig.model) {
+        // 未配置，展示引导
+        const body = $('chatBody');
+        body.innerHTML = `
+            <div class="ai-empty">
+                <div class="ai-empty-icon">⚙️</div>
+                <p class="ai-empty-title">尚未配置 AI</p>
+                <p class="ai-empty-hint">请先填写 API 地址、Key 和模型名，再与 AI 对话</p>
+                <button class="practice-quiz-btn practice-quiz-btn-primary" style="max-width:200px;margin:12px auto 0" onclick="openAISettings()">⚙️ 立即配置</button>
+            </div>
+        `;
+        return;
+    }
+    addChatMsg('assistant', '你好！我是你的编程伙伴 👋 我会结合这道错题帮你答疑。直接提问即可，例如：「为什么我的代码会越界？」');
+}
+
+function closeAIChat() {
+    $('chatModal').style.display = 'none';
+}
+function renderChatBody() {
+    const body = $('chatBody');
+    // 保留首条引导语或清空
+    body.innerHTML = '';
+    addChatMsg('assistant', '把你这道错题的疑问发给我吧，我会结合它来分析。');
+}
+
+function addChatMsg(role, content) {
+    const body = $('chatBody');
+    if (!body) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'chat-msg ' + (role === 'user' ? 'chat-msg-user' : 'chat-msg-assistant');
+    const text = document.createElement('div');
+    text.className = 'chat-bubble';
+    text.innerHTML = role === 'assistant' ? renderMarkdown(content || '') : escapeHtml(content);
+    wrap.appendChild(text);
+    body.appendChild(wrap);
+    body.scrollTop = body.scrollHeight;
+}
+
+// 对话用：不强制 JSON 输出
+async function callLLMChat(messages) {
+    const url = aiConfig.baseURL.replace(/\/+$/, '') + '/chat/completions';
+    const body = {
+        model: aiConfig.model,
+        messages: messages,
+        temperature: 0.7
+    };
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + aiConfig.apiKey },
+        body: JSON.stringify(body)
+    });
+    if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        throw new Error('HTTP ' + resp.status + (text ? (': ' + text.slice(0, 200)) : ''));
+    }
+    const data = await resp.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error('LLM 返回为空');
+    return content;
+}
+
+async function sendChatMessage() {
+    if (!chatMistake) return;
+    const input = $('chatInput');
+    const text = (input.value || '').trim();
+    if (!text) return;
+
+    addChatMsg('user', text);
+    input.value = '';
+    input.style.height = 'auto';
+
+    if (!aiConfig.apiKey || !aiConfig.baseURL || !aiConfig.model) {
+        addChatMsg('assistant', '⚠️ 尚未配置 AI，请点击右上角/引导按钮先完成配置再继续对话。');
+        return;
+    }
+
+    chatHistory.push({ role: 'user', content: text });
+
+    // 注入错题上下文
+    const ctx = chatMistake;
+    const contextMsg = {
+        role: 'system',
+        content: `你是用户学习编程的 AI 伙伴，请结合这道错题耐心解答。问题尽量通俗、给出关键代码示例。
+错题标题：${ctx.title || ''}
+语言：${getLangName(ctx.lang)}
+标签：${(ctx.tags || []).join('、') || '无'}
+错误代码：
+${ctx.wrongCode || '（无）'}
+正确代码：
+${ctx.rightCode || '（无）'}
+错误分析：
+${ctx.note || '（无）'}`
+    };
+
+    // 显示"思考中"
+    const pendingEl = document.createElement('div');
+    pendingEl.className = 'chat-msg chat-msg-assistant';
+    pendingEl.innerHTML = '<div class="chat-bubble chat-typing"><span></span><span></span><span></span></div>';
+    $('chatBody').appendChild(pendingEl);
+    $('chatBody').scrollTop = $('chatBody').scrollHeight;
+
+    // 限制上下文长度
+    const history = [...chatHistory].slice(-8);
+    const messages = [contextMsg, ...history];
+
+    try {
+        const reply = await callLLMChat(messages);
+        pendingEl.remove();
+        chatHistory.push({ role: 'assistant', content: reply });
+        addChatMsg('assistant', reply);
+    } catch (e) {
+        pendingEl.remove();
+        console.error('AI 对话失败:', e);
+        addChatMsg('assistant', '⚠️ 对话失败：' + (e.message || '未知错误') + '。请检查网络或配置后重试。');
+    }
 }
 
 // ========== 数据管理：PDF 导出 / JSON 备份恢复 ==========
