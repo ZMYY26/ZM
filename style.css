@@ -3291,3 +3291,46 @@ body {
     cursor: pointer;
 }
 .mini-btn:active { transform: scale(0.97); }
+
+/* ========== 知识库增强 ========== */
+.knowledge-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+.knowledge-card-diff {
+    font-size: 11px;
+    color: #f59e0b;
+    letter-spacing: 1px;
+}
+.kd-diff {
+    font-size: 12px;
+    color: #f59e0b;
+    background: #fef3c7;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 8px;
+}
+[data-theme="dark"] .kd-diff {
+    background: #3b2f0f;
+}
+.kd-detail {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text);
+}
+.kd-detail table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0;
+    font-size: 12px;
+}
+.kd-detail th, .kd-detail td {
+    border: 1px solid var(--border);
+    padding: 5px 8px;
+    text-align: left;
+}
+.kd-detail th {
+    background: var(--surface);
+}

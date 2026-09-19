@@ -135,6 +135,21 @@ function renderMarkdown(text) {
     html = html.replace(/^##\s+(.+)$/gm, '<h5>$1</h5>');
     html = html.replace(/^#\s+(.+)$/gm, '<h4>$1</h4>');
 
+    // 表格：连续 | 行，第二行为分隔行 |---|
+    html = html.replace(/(?:^\|.+\|\s*$\n?)+/gm, (block) => {
+        const lines = block.trim().split('\n').map(l => l.trim()).filter(Boolean);
+        if (lines.length >= 2 && /^\|[\s:|-]+\|$/.test(lines[1])) {
+            const headCells = lines[0].split('|').slice(1, -1).map(c => c.trim());
+            const head = '<tr>' + headCells.map(c => `<th>${c}</th>`).join('') + '</tr>';
+            const bodyRows = lines.slice(2).map(l => {
+                const cs = l.split('|').slice(1, -1).map(c => c.trim());
+                return '<tr>' + cs.map(c => `<td>${c}</td>`).join('') + '</tr>';
+            }).join('');
+            return `<table><thead>${head}</thead><tbody>${bodyRows}</tbody></table>\n`;
+        }
+        return block;
+    });
+
     // 分隔线
     html = html.replace(/^-{3,}$/gm, '<hr>');
     html = html.replace(/^\*{3,}$/gm, '<hr>');
@@ -159,7 +174,7 @@ function renderMarkdown(text) {
     html = html.split('\n').map(line => {
         const t = line.trim();
         if (!t) return '';
-        const isLi = t.startsWith('<li>') || t.startsWith('<h4>') || t.startsWith('<h5>') || t.startsWith('<h6>') || t.startsWith('<hr>');
+        const isLi = t.startsWith('<li>') || t.startsWith('<h4>') || t.startsWith('<h5>') || t.startsWith('<h6>') || t.startsWith('<hr>') || t.startsWith('<table>');
         return isLi ? t : `<p>${t}</p>`;
     }).join('');
 
@@ -1003,33 +1018,33 @@ function markReviewed(id) {
     showToast('复习完成！');
 }
 
-// ========== 知识库（从后端 API 获取）==========
-async function renderKnowledge() {
+// ========== 知识库（内置知识数据 knowledge-data.js）==========
+function getAllKnowledgeItems() {
+    return (typeof KNOWLEDGE_ITEMS !== 'undefined') ? KNOWLEDGE_ITEMS : [];
+}
+
+function renderKnowledge() {
     const searchInput = $('knowledgeSearch');
     if (searchInput) searchInput.value = knowledgeSearchKeyword;
 
     const listEl = $('knowledgeList');
-    listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p class="empty-text">加载中...</p></div>';
+    const all = getAllKnowledgeItems();
 
-    // 并行获取分类和知识点列表
-    const catPromise = api('/categories');
-
-    let listPromise;
-    if (knowledgeSearchKeyword) {
-        listPromise = api('/knowledge/search?q=' + encodeURIComponent(knowledgeSearchKeyword));
-    } else {
-        listPromise = api('/knowledge' + (knowledgeActiveCategory ? '?category=' + encodeURIComponent(knowledgeActiveCategory) : ''));
+    if (all.length === 0) {
+        listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p class="empty-text">知识库数据加载失败</p><p class="empty-hint">请刷新页面重试</p></div>';
+        return;
     }
 
-    const [catResult, listResult] = await Promise.all([catPromise, listPromise]);
+    // 分类统计
+    const catMap = {};
+    all.forEach(k => { catMap[k.category] = (catMap[k.category] || 0) + 1; });
+    const cats = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
 
     // 渲染分类标签
     const catContainer = $('knowledgeCategories');
-    const cats = catResult.success ? catResult.data : [];
-    const totalAll = cats.reduce((s, c) => s + c.count, 0);
     catContainer.innerHTML = `
         <div class="knowledge-cat-tab ${knowledgeActiveCategory === '' ? 'active' : ''}" onclick="selectKnowledgeCategory('')">
-            全部<span class="knowledge-cat-count">${totalAll}</span>
+            全部<span class="knowledge-cat-count">${all.length}</span>
         </div>
         ${cats.map(([cat, count]) => `
             <div class="knowledge-cat-tab ${knowledgeActiveCategory === cat ? 'active' : ''}" onclick="selectKnowledgeCategory('${escapeHtml(cat)}')">
@@ -1038,15 +1053,27 @@ async function renderKnowledge() {
         `).join('')}
     `;
 
-    // 渲染知识点列表
-    const items = listResult.success ? listResult.data : [];
+    // 搜索 + 分类过滤
+    const kw = knowledgeSearchKeyword.trim().toLowerCase();
+    let items = all;
+    if (knowledgeActiveCategory) {
+        items = items.filter(k => k.category === knowledgeActiveCategory);
+    }
+    if (kw) {
+        items = items.filter(k =>
+            (k.title || '').toLowerCase().includes(kw) ||
+            (k.summary || '').toLowerCase().includes(kw) ||
+            (k.detail || '').toLowerCase().includes(kw) ||
+            (k.tags || []).some(t => t.toLowerCase().includes(kw))
+        );
+    }
 
     if (items.length === 0) {
         listEl.innerHTML = `
             <div class="empty-state">
                 <div class="empty-icon">🔍</div>
                 <p class="empty-text">未找到相关知识点</p>
-                <p class="empty-hint">试试搜索其他关键词，如"排序"、"TCP"、"索引"</p>
+                <p class="empty-hint">试试搜索其他关键词，如"排序"、"TCP"、"索引"、"递归"</p>
             </div>
         `;
         return;
@@ -1054,11 +1081,14 @@ async function renderKnowledge() {
 
     listEl.innerHTML = items.map(item => `
         <div class="knowledge-card" onclick="viewKnowledge('${item.id}')">
-            <span class="knowledge-card-category">${escapeHtml(item.category)}</span>
+            <div class="knowledge-card-head">
+                <span class="knowledge-card-category">${escapeHtml(item.category)}</span>
+                ${item.difficulty ? `<span class="knowledge-card-diff">${'★'.repeat(item.difficulty)}</span>` : ''}
+            </div>
             <div class="knowledge-card-title">${escapeHtml(item.title)}</div>
             <div class="knowledge-card-summary">${escapeHtml(item.summary)}</div>
             <div class="knowledge-card-tags">
-                ${(item.tags || []).map(t => `<span class="knowledge-card-tag">${escapeHtml(t)}</span>`).join('')}
+                ${(item.tags || []).slice(0, 4).map(t => `<span class="knowledge-card-tag">${escapeHtml(t)}</span>`).join('')}
             </div>
             ${item.complexity ? `<div class="knowledge-card-complexity">⏱ ${escapeHtml(item.complexity)}</div>` : ''}
         </div>
@@ -1076,35 +1106,37 @@ function handleKnowledgeSearch(event) {
     renderKnowledge();
 }
 
-async function viewKnowledge(id) {
-    const detail = $('knowledgeDetail');
-    detail.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p class="empty-text">加载中...</p></div>';
-    $('knowledgeModal').style.display = 'block';
+function viewKnowledge(id) {
+    const item = getAllKnowledgeItems().find(k => k.id === id);
 
-    const result = await api('/knowledge/' + id);
-    if (!result.success || !result.data) {
-        detail.innerHTML = '<div class="empty-state"><p class="empty-text">加载失败</p></div>';
+    const detail = $('knowledgeDetail');
+    if (!item) {
+        detail.innerHTML = '<div class="empty-state"><p class="empty-text">知识点不存在</p></div>';
         return;
     }
-
-    const item = result.data;
+    $('knowledgeModal').style.display = 'block';
     $('knowledgeModalTitle').textContent = item.title;
 
-    // 找到相关错题
+    // 找到关联错题（标签匹配）
     const relatedMistakes = mistakes.filter(m => {
-        if (!m.tags) return false;
-        return item.tags.some(t => m.tags.includes(t));
+        if (!m.tags || !m.tags.length) return false;
+        return (item.tags || []).some(t => m.tags.includes(t));
     });
 
-    // 找到同分类的相关知识点（从 API 获取）
-    const relatedResult = await api('/knowledge?category=' + encodeURIComponent(item.category));
-    const related = (relatedResult.success ? relatedResult.data : [])
-        .filter(k => k.id !== item.id)
+    // 同分类相关知识点
+    const related = getAllKnowledgeItems()
+        .filter(k => k.category === item.category && k.id !== item.id)
         .slice(0, 5);
+
+    // 代码高亮
+    const codeHtml = item.code
+        ? hljs.highlight(item.code, { language: item.codeLang || 'plaintext' }).value
+        : '';
 
     detail.innerHTML = `
         <div class="kd-header">
             <span class="kd-category">${escapeHtml(item.category)}</span>
+            ${item.difficulty ? `<span class="kd-diff">难度 ${'★'.repeat(item.difficulty)}</span>` : ''}
         </div>
         <div class="kd-title">${escapeHtml(item.title)}</div>
         ${item.tags && item.tags.length > 0 ? `
@@ -1121,7 +1153,17 @@ async function viewKnowledge(id) {
         ${item.detail ? `
             <div class="kd-section">
                 <div class="kd-section-title">📝 详细说明</div>
-                <div class="kd-detail">${escapeHtml(item.detail)}</div>
+                <div class="kd-detail markdown-body">${renderMarkdown(item.detail)}</div>
+            </div>
+        ` : ''}
+
+        ${item.code ? `
+            <div class="kd-section">
+                <div class="kd-section-title">💻 示例代码</div>
+                <div class="code-block">
+                    <div class="code-block-header"><span>${escapeHtml(item.codeLang || 'code')}</span></div>
+                    <pre><code class="hljs language-${escapeHtml(item.codeLang || 'plaintext')}">${codeHtml}</code></pre>
+                </div>
             </div>
         ` : ''}
 
@@ -1146,7 +1188,7 @@ async function viewKnowledge(id) {
             </div>
         ` : ''}
 
-        <button class="kd-link-btn" onclick="linkToMistake('${escapeHtml(item.title)}', ${JSON.stringify(item.tags).replace(/"/g, '&quot;')})">
+        <button class="kd-link-btn" onclick="linkToMistake('${escapeHtml(item.title)}', ${JSON.stringify(item.tags || []).replace(/"/g, '&quot;')})">
             📝 用此知识点创建错题
         </button>
 
@@ -1157,12 +1199,17 @@ async function viewKnowledge(id) {
                     ${related.map(r => `
                         <div class="kd-related-item" onclick="viewKnowledge('${r.id}')">
                             ${escapeHtml(r.title)}
+                            <span style="color:var(--text-secondary);font-size:12px;float:right">→</span>
                         </div>
                     `).join('')}
                 </div>
             </div>
         ` : ''}
     `;
+
+    $('knowledgeModal').scrollTop = 0;
+    const modalContent = $('knowledgeModal').querySelector('.knowledge-modal-content');
+    if (modalContent) modalContent.scrollTop = 0;
 }
 
 function closeKnowledgeModal() {
