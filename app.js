@@ -1053,19 +1053,36 @@ function renderKnowledge() {
         `).join('')}
     `;
 
-    // 搜索 + 分类过滤
+    // 搜索：多关键词 + 同义词 + 相关性排序
     const kw = knowledgeSearchKeyword.trim().toLowerCase();
     let items = all;
     if (knowledgeActiveCategory) {
         items = items.filter(k => k.category === knowledgeActiveCategory);
     }
+    let searchVariants = [];
     if (kw) {
-        items = items.filter(k =>
-            (k.title || '').toLowerCase().includes(kw) ||
-            (k.summary || '').toLowerCase().includes(kw) ||
-            (k.detail || '').toLowerCase().includes(kw) ||
-            (k.tags || []).some(t => t.toLowerCase().includes(kw))
-        );
+        const { groups, variants } = expandSearchTokens(kw);
+        searchVariants = variants;
+        items = items
+            .map(item => ({ item, score: knowledgeItemScore(item, groups) }))
+            .filter(x => x.score > 0)
+            .sort((a, b) => b.score - a.score)
+            .map(x => x.item);
+    }
+
+    // 搜索结果计数提示（仅搜索时显示）
+    let infoEl = $('knowledgeSearchInfo');
+    if (kw) {
+        if (!infoEl) {
+            infoEl = document.createElement('p');
+            infoEl.id = 'knowledgeSearchInfo';
+            infoEl.className = 'knowledge-search-info';
+            $('knowledgeCategories').after(infoEl);
+        }
+        infoEl.textContent = `🔍 「${knowledgeSearchKeyword.trim()}」 命中 ${items.length} 个知识点`;
+        infoEl.style.display = '';
+    } else if (infoEl) {
+        infoEl.style.display = 'none';
     }
 
     if (items.length === 0) {
@@ -1073,26 +1090,100 @@ function renderKnowledge() {
             <div class="empty-state">
                 <div class="empty-icon">🔍</div>
                 <p class="empty-text">未找到相关知识点</p>
-                <p class="empty-hint">试试搜索其他关键词，如"排序"、"TCP"、"索引"、"递归"</p>
+                <p class="empty-hint">试试搜索其他关键词，如"排序"、"TCP"、"索引"、"递归"，或输入拼音缩写如 "dp"、"bst"、"lru"</p>
             </div>
         `;
         return;
     }
 
+    const hl = (text) => kw ? knowledgeHighlight(text, searchVariants) : escapeHtml(text);
     listEl.innerHTML = items.map(item => `
         <div class="knowledge-card" onclick="viewKnowledge('${item.id}')">
             <div class="knowledge-card-head">
                 <span class="knowledge-card-category">${escapeHtml(item.category)}</span>
                 ${item.difficulty ? `<span class="knowledge-card-diff">${'★'.repeat(item.difficulty)}</span>` : ''}
             </div>
-            <div class="knowledge-card-title">${escapeHtml(item.title)}</div>
-            <div class="knowledge-card-summary">${escapeHtml(item.summary)}</div>
+            <div class="knowledge-card-title">${hl(item.title)}</div>
+            <div class="knowledge-card-summary">${hl(item.summary)}</div>
             <div class="knowledge-card-tags">
-                ${(item.tags || []).slice(0, 4).map(t => `<span class="knowledge-card-tag">${escapeHtml(t)}</span>`).join('')}
+                ${(item.tags || []).slice(0, 4).map(t => `<span class="knowledge-card-tag">${hl(t)}</span>`).join('')}
             </div>
             ${item.complexity ? `<div class="knowledge-card-complexity">⏱ ${escapeHtml(item.complexity)}</div>` : ''}
         </div>
     `).join('');
+}
+
+/* ========== 知识库搜索优化 ==========
+ * 1. 多关键词：空格分词，全部命中才返回（AND）
+ * 2. 同义词：快排→快速排序、dp→动态规划、bst→二叉搜索树 等
+ * 3. 相关性排序：标题(10) > 标签(8) > 摘要(5) > 正文(2)
+ * 4. 结果高亮：命中词用 <mark> 标出
+ * =========================================== */
+const KNOWLEDGE_ALIASES = {
+    '快排': ['快速排序'], '归并': ['归并排序'],
+    '二分': ['二分查找'], '动规': ['动态规划'],
+    'dp': ['动态规划'],
+    '哈希': ['散列', '散列表', 'hash'], '散列': ['哈希', 'hash'], 'hash': ['哈希', '散列'],
+    'bst': ['二叉搜索树'], '搜索树': ['二叉搜索树'],
+    'b+树': ['索引'], '索引': ['b+树'],
+    'tcp': ['传输控制协议'], 'http': ['https'], 'https': ['http'],
+    'lru': ['缓存'], '缓存': ['lru'],
+    'sql': ['数据库'], '数据库': ['sql'],
+    'join': ['连接', 'join'], '连接': ['join'],
+    'avl': ['平衡树'], '红黑树': ['平衡树'], '平衡树': ['avl', '红黑树'],
+    'io': ['磁盘'], '磁盘': ['io'],
+    '指针': ['引用', '地址'], '引用': ['指针'],
+    '越界': ['数组越界'], '空指针': ['nullptr'], '七层': ['osi'], 'osi': ['七层']
+};
+
+function expandSearchTokens(kw) {
+    const rawTokens = kw.split(/\s+/).map(t => t.trim()).filter(Boolean);
+    // 每个原始 token 一组（含同义词扩展），组内 OR、组间 AND
+    const groups = rawTokens.map(t => {
+        const g = new Set([t]);
+        (KNOWLEDGE_ALIASES[t] || []).forEach(a => g.add(a));
+        return [...g];
+    });
+    return { rawTokens, groups, variants: [...new Set(groups.flat())] };
+}
+
+// 英文/缩写词用词边界匹配，避免 dp 误命中 udp、io 误命中 ratio 等
+function knowledgeFieldMatch(text, v) {
+    const s = String(text || '').toLowerCase();
+    if (/^[a-z0-9+#.]+$/.test(v)) {
+        return new RegExp('\\b' + escapeRegExp(v) + '\\b').test(s);
+    }
+    return s.includes(v);
+}
+
+function knowledgeItemScore(item, groups) {
+    // 每个 token 组取组内最佳命中字段权重；所有组都须命中（AND 语义）
+    let score = 0;
+    for (const g of groups) {
+        let best = 0;
+        for (const v of g) {
+            if (knowledgeFieldMatch(item.title, v)) best = Math.max(best, 10);
+            else if (knowledgeFieldMatch((item.tags || []).join(' '), v)) best = Math.max(best, 8);
+            else if (knowledgeFieldMatch(item.summary, v)) best = Math.max(best, 5);
+            else if (knowledgeFieldMatch(item.detail, v)) best = Math.max(best, 2);
+        }
+        if (!best) return 0;
+        score += best;
+    }
+    return score;
+}
+
+function knowledgeHighlight(text, variants) {
+    const html = escapeHtml(text || '');
+    if (!variants.length || !text) return html;
+    // 长词优先 + 单遍替换，避免嵌套 <mark>
+    const sorted = [...variants].sort((a, b) => b.length - a.length);
+    const re = new RegExp(sorted.map(escapeRegExp).join('|'), 'gi');
+    return html.replace(re, m => '<mark>' + m + '</mark>');
+}
+
+function escapeRegExp(str) {
+    return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function selectKnowledgeCategory(cat) {
@@ -1101,9 +1192,12 @@ function selectKnowledgeCategory(cat) {
     renderKnowledge();
 }
 
+let knowledgeSearchTimer = null;
 function handleKnowledgeSearch(event) {
     knowledgeSearchKeyword = event.target.value.trim();
-    renderKnowledge();
+    // 防抖 200ms，避免每个按键都全量重算
+    if (knowledgeSearchTimer) clearTimeout(knowledgeSearchTimer);
+    knowledgeSearchTimer = setTimeout(() => renderKnowledge(), 200);
 }
 
 function viewKnowledge(id) {
