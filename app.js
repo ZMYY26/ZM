@@ -486,8 +486,87 @@ function filterByTag(tag) {
     switchPage('pageHome');
 }
 
+// ========== A1 遗忘预测器 ==========
+// 风险模型：艾宾浩斯间隔 + 逾期惩罚 + 顽固题加权
+function getForgottenRisk(m) {
+    if (!m || m.status === 'mastered') return null;
+    const last = m.lastReviewAt || m.createdAt || Date.now();
+    const rc = m.reviewCount || 0;
+    const intervalDays = REVIEW_INTERVALS[Math.min(rc, REVIEW_INTERVALS.length - 1)];
+    const due = last + intervalDays * 86400000;
+    const overdue = Date.now() - due;               // >0 表示已到期未复习
+
+    if (overdue <= 0) {
+        return { score: -1, level: 'none', overdueDays: 0, intervalDays, reason: '未到期' };
+    }
+
+    const overdueDays = Math.floor(overdue / 86400000);
+    // 基础分：逾期天数（封顶 5 分）
+    let score = Math.min(5, overdueDays + 1);
+    // 顽固题：已复习多轮仍未掌握
+    if (rc >= 4) score += 2;
+    // 长期未攻克：创建超 30 天仍未掌握
+    if (m.createdAt && Date.now() - m.createdAt > 30 * 86400000) score += 1;
+
+    let level = 'low';
+    if (score >= 6) level = 'high';
+    else if (score >= 3) level = 'mid';
+
+    const reasons = [];
+    reasons.push(overdueDays >= 1 ? `逾期 ${overdueDays} 天` : '今日到期');
+    if (rc >= 4) reasons.push(`已复习 ${rc} 轮`);
+    return { score, level, overdueDays, intervalDays, reason: reasons.join(' · '), due };
+}
+
+// 「今日务必修」清单：按遗忘风险排序，取风险最高的前 6 题
+function renderForgottenList() {
+    const el = $('forgottenList');
+    if (!el) return;
+
+    const list = mistakes
+        .map(m => ({ m, risk: getForgottenRisk(m) }))
+        .filter(x => x.risk && x.risk.level !== 'none')
+        .sort((a, b) => b.risk.score - a.risk.score)
+        .slice(0, 6);
+
+    const levelNames = { high: ['高危', 'high'], mid: ['中危', 'mid'], low: ['低危', 'low'] };
+
+    if (!list.length) {
+        el.innerHTML = `
+            <div class="forgotten-card">
+                <div class="forgotten-card-head">
+                    <span>🎯 今日务必修 · 遗忘预测</span>
+                </div>
+                <div class="forgotten-empty">✅ 没有逾期错题，暂无遗忘风险，继续保持！</div>
+            </div>
+        `;
+        return;
+    }
+
+    el.innerHTML = `
+        <div class="forgotten-card">
+            <div class="forgotten-card-head">
+                <span>🎯 今日务必修 · 遗忘预测</span>
+                <span class="forgotten-count">${list.length} 道风险题</span>
+            </div>
+            ${list.map(({ m, risk }) => {
+                const [name, cls] = levelNames[risk.level];
+                return `
+                <div class="forgotten-item" onclick="viewMistake('${m.id}')">
+                    <span class="risk-badge risk-${cls}">${name}</span>
+                    <span class="forgotten-item-title">${escapeHtml(m.title)}</span>
+                    <span class="forgotten-item-reason">${escapeHtml(risk.reason)}</span>
+                </div>`;
+            }).join('')}
+        </div>
+    `;
+}
+
 // ========== 渲染复习页 ==========
 function renderReview() {
+    // 遗忘预测清单（置顶）
+    renderForgottenList();
+
     // 按复习日期分组
     const reviewGroups = {};
 
@@ -713,6 +792,10 @@ function renderDetail(m) {
 
     const nextReview = getNextReviewDate(m);
     const nextReviewText = nextReview ? formatDate(nextReview) : '复习完成 ✓';
+    const risk = getForgottenRisk(m);
+    const riskTag = risk && risk.level !== 'none'
+        ? `<span class="meta-tag risk-inline risk-${risk.level}" title="遗忘风险：${escapeHtml(risk.reason)}">遗忘风险 ${risk.level === 'high' ? '高危' : risk.level === 'mid' ? '中危' : '低危'}</span>`
+        : '';
 
     container.innerHTML = `
         <div class="detail-header">
@@ -721,6 +804,7 @@ function renderDetail(m) {
                 ${m.source ? `<span class="meta-tag">${escapeHtml(m.source)}</span>` : ''}
                 <span class="meta-tag">创建于 ${formatDate(m.createdAt)}</span>
                 <span class="meta-tag">下次复习: ${nextReviewText}</span>
+                ${riskTag}
             </div>
             <div class="detail-title">${escapeHtml(m.title)}</div>
             ${m.tags && m.tags.length > 0 ? `
@@ -1408,6 +1492,9 @@ function init() {
     // OCR 录入入口
     $('ocrEntryBtn').addEventListener('click', openOcrModal);
 
+    // AI 智能打标
+    $('aiTagBtn').addEventListener('click', aiAutoTag);
+
     // 挑战 / 分享 / OCR / 云同步弹窗事件
     $('closeChallengeModal').addEventListener('click', closeChallengeModal);
     $('challengeModal').addEventListener('click', (e) => {
@@ -1424,6 +1511,10 @@ function init() {
     $('closeSyncModal').addEventListener('click', closeSyncModal);
     $('syncModal').addEventListener('click', (e) => {
         if (e.target.id === 'syncModal') closeSyncModal();
+    });
+    $('closeWeeklyModal').addEventListener('click', closeWeeklyModal);
+    $('weeklyModal').addEventListener('click', (e) => {
+        if (e.target.id === 'weeklyModal') closeWeeklyModal();
     });
 
     // 返回按钮
@@ -1535,6 +1626,9 @@ function init() {
             }
             if ($('syncModal').style.display !== 'none') {
                 closeSyncModal();
+            }
+            if ($('weeklyModal').style.display !== 'none') {
+                closeWeeklyModal();
             }
         }
     });
@@ -4769,6 +4863,99 @@ async function syncPull(overwrite) {
     }
 }
 
+/* ========================================
+ * B7 AI 智能打标
+ * 粘贴题目/代码后，AI 推荐标签、标题、错因，自动预填表单
+ * ======================================== */
+async function aiAutoTag() {
+    const btn = $('aiTagBtn');
+    const hint = $('aiTagHint');
+
+    if (!aiConfig.apiKey || !aiConfig.baseURL || !aiConfig.model) {
+        hint.textContent = '⚠️ 尚未配置 AI，点击 AI 举一反三弹窗中的「⚙️ 配置」先完成配置';
+        hint.style.color = '#b45309';
+        showToast('请先配置 AI');
+        return;
+    }
+
+    const title = $('inputTitle').value.trim();
+    const desc = $('inputDesc').value.trim();
+    const wrongCode = $('inputWrongCode').value.trim();
+
+    if (!title && !wrongCode) {
+        showToast('请先填写题目标题或错误代码，AI 才有分析依据');
+        return;
+    }
+
+    // 已有标签时不覆盖
+    const existingTags = $('inputTags').value.split(/[,，]/).map(t => t.trim()).filter(Boolean);
+
+    btn.disabled = true;
+    btn.textContent = '🤖 分析中…';
+    hint.textContent = 'AI 正在分析题目，推荐标签与错因…';
+    hint.style.color = '';
+
+    try {
+        const prompt = `请分析这道编程错题，返回严格 JSON（不要多余文字）：
+{
+  "tags": ["考点标签1", "考点标签2", "考点标签3"],  // 3-5 个，简短中文标签
+  "title": "简洁题目标题（仅当原标题为空时返回，否则返回空字符串）",
+  "reason": "一句话错误原因",  // 20 字内
+  "category": "数据结构/算法/操作系统/计算机网络/数据库/语言基础 之一"
+}
+已有标签（避免重复，可用同义补充）：${existingTags.join('、') || '无'}
+现有标题：${title || '（空）'}
+题目描述：${desc || '（无）'}
+错误代码：
+${wrongCode || '（无）'}`;
+
+        const text = await callLLMChat([
+            { role: 'system', content: '你是编程教学专家，擅长为错题打标签、归纳错误原因。只输出合法 JSON。' },
+            { role: 'user', content: prompt }
+        ]);
+
+        // 解析 JSON：剥离代码围栏，取第一个 {...}
+        let cleaned = text.trim();
+        const fence = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/i);
+        if (fence) cleaned = fence[1].trim();
+        const jsonStart = cleaned.indexOf('{');
+        const jsonEnd = cleaned.lastIndexOf('}');
+        if (jsonStart < 0 || jsonEnd <= jsonStart) throw new Error('未返回有效 JSON');
+        const data = JSON.parse(cleaned.slice(jsonStart, jsonEnd + 1));
+
+        const newTags = Array.isArray(data.tags) ? data.tags.map(t => String(t).trim()).filter(Boolean) : [];
+        // 合并标签去重（保留用户已填的）
+        const merged = [...new Set([...existingTags, ...newTags])].slice(0, 6);
+        $('inputTags').value = merged.join(', ');
+
+        // 标题仅在为空时填充
+        if (!$('inputTitle').value.trim() && data.title) {
+            $('inputTitle').value = String(data.title).trim();
+        }
+        // 错因仅在为空时填充
+        if (!$('inputNote').value.trim() && data.reason) {
+            $('inputNote').value = String(data.reason).trim();
+        }
+        // 分类映射到语言？category 与语言无关，仅用于提示
+        if (data.category && !$('inputNote').value.includes(data.category)) {
+            // 不自动写类别，避免污染笔记；仅在 hint 展示
+            hint.textContent = `✅ 已推荐 ${newTags.length} 个标签${data.category ? '（分类：' + data.category + '）' : ''}，可手动微调后保存`;
+            hint.style.color = '#166534';
+        } else {
+            hint.textContent = '✅ AI 已打标，可手动微调后保存';
+            hint.style.color = '#166534';
+        }
+        showToast('✅ AI 打标完成');
+    } catch (e) {
+        console.error('AI 打标失败:', e);
+        hint.textContent = '⚠️ 打标失败：' + (e.message || '未知错误') + '，请重试或手动填写';
+        hint.style.color = '#b91c1c';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🤖 AI 智能打标';
+    }
+}
+
 // 自动同步：保存数据后静默推送（防抖）
 function maybeAutoSync() {
     if (!syncConfig.autoSync || !syncConfig.token || !syncConfig.gistId) return;
@@ -4781,4 +4968,230 @@ function maybeAutoSync() {
             saveSyncConfig();
         }).catch(err => console.warn('自动同步失败:', err));
     }, 2500);
+}
+
+/* ========================================
+ * A3 AI 复习周报
+ * 汇总近 7 天学习数据 → AI 点评（未配置 AI 时使用模板）
+ * ======================================== */
+let weeklyStats = null;
+let weeklyAIText = '';
+
+function buildWeeklyStats() {
+    const weekAgo = Date.now() - 7 * 86400000;
+    const inWeek = ts => ts && ts >= weekAgo;
+
+    const newCount = mistakes.filter(m => inWeek(m.createdAt)).length;
+    const masteredCount = mistakes.filter(m => m.status === 'mastered' && inWeek(m.lastReviewAt)).length;
+
+    let reviewActions = 0, activeDays = 0;
+    for (let i = 0; i < 7; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const n = activityLog[todayKey(d)] || 0;
+        reviewActions += n;
+        if (n > 0) activeDays++;
+    }
+
+    const done = Object.values(practiceRecords || {});
+    const practiceDone = done.filter(r => inWeek(r.lastAt)).length;
+    const practiceCorrect = done.filter(r => inWeek(r.lastAt) && r.correct).length;
+
+    // 薄弱标签：未掌握错题按标签统计 Top3
+    const tagCount = {};
+    mistakes.filter(m => m.status !== 'mastered').forEach(m =>
+        (m.tags || []).forEach(t => { tagCount[t] = (tagCount[t] || 0) + 1; })
+    );
+    const weakTags = Object.entries(tagCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([t, n]) => `${t}(${n}题)`);
+
+    return {
+        newCount,
+        masteredCount,
+        reviewActions,
+        activeDays,
+        practiceDone,
+        practiceCorrect,
+        practiceRate: practiceDone ? Math.round(practiceCorrect / practiceDone * 100) : 0,
+        weakTags,
+        total: mistakes.length,
+        pending: mistakes.filter(m => m.status !== 'mastered').length,
+        streak: calcStreak(),
+        points: userPoints || 0,
+        awardCount: Object.keys(unlockedAchievements).length
+    };
+}
+
+function templateWeeklyText(s) {
+    const lines = [];
+    lines.push('## 💪 本周表现\n本周复习打卡 **' + s.reviewActions + '** 次（' + s.activeDays + '/7 天），新增 ' + s.newCount + ' 道错题，掌握 **' + s.masteredCount + '** 道，练习 ' + s.practiceDone + ' 题、正确率 ' + s.practiceRate + '%。');
+    if (s.weakTags.length) {
+        lines.push('## 📉 薄弱分析\n薄弱考点集中在：' + s.weakTags.join('、') + '。建议优先复习这些标签下的错题。');
+    }
+    lines.push('## 🎯 下周建议\n当前待攻克 ' + s.pending + ' 道错题' + (s.streak > 1 ? '，已连续打卡 ' + s.streak + ' 天，保持节奏！' : '，从今天开始打卡吧！') + (s.practiceRate < 60 && s.practiceDone > 0 ? ' 练习正确率偏低，多回顾错题解析。' : ''));
+    return lines.join('\n\n');
+}
+
+async function openWeeklyReport() {
+    $('weeklyModal').style.display = 'flex';
+    weeklyStats = buildWeeklyStats();
+    weeklyAIText = '';
+    renderWeeklyBody('💭 AI 正在总结你的本周表现…', true);
+
+    if (aiConfig.apiKey && aiConfig.baseURL && aiConfig.model) {
+        try {
+            const prompt = '学生本周学习数据如下（JSON）：\n' + JSON.stringify(weeklyStats) +
+                '\n\n请写一份鼓励性的编程学习周报，使用 Markdown，250 字以内，包含三段：## 💪 本周表现、## 📉 薄弱分析、## 🎯 下周建议';
+            const text = await callLLMChat([
+                { role: 'system', content: '你是严谨又温暖的编程学习导师，回复使用简体中文 Markdown，控制在 250 字以内。' },
+                { role: 'user', content: prompt }
+            ]);
+            weeklyAIText = text;
+            renderWeeklyBody('');
+        } catch (e) {
+            console.warn('AI 周报生成失败，使用模板:', e);
+            weeklyAIText = templateWeeklyText(weeklyStats);
+            renderWeeklyBody('⚠️ AI 生成失败，已展示数据模板报告');
+        }
+    } else {
+        weeklyAIText = templateWeeklyText(weeklyStats);
+        renderWeeklyBody('💡 未配置 AI，展示数据模板报告；配置 AI 后可获得个性化点评');
+    }
+}
+
+function closeWeeklyModal() {
+    $('weeklyModal').style.display = 'none';
+}
+
+function renderWeeklyBody(note, loading = false) {
+    const s = weeklyStats;
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    const range = `${weekStart.getMonth() + 1}/${weekStart.getDate()} - ${weekEnd.getMonth() + 1}/${weekEnd.getDate()}`;
+
+    $('weeklyBody').innerHTML = `
+        <div class="weekly-range">📅 ${range} · 本周学习周报</div>
+        <div class="weekly-stats-grid">
+            <div class="weekly-stat"><b>${s.reviewActions}</b><span>复习打卡</span></div>
+            <div class="weekly-stat"><b>${s.newCount}</b><span>新增错题</span></div>
+            <div class="weekly-stat"><b>${s.masteredCount}</b><span>掌握错题</span></div>
+            <div class="weekly-stat"><b>${s.practiceRate}%</b><span>练习正确率</span></div>
+        </div>
+        <div class="weekly-meta">
+            <span>🔥 连续打卡 ${s.streak} 天</span>
+            <span>🏅 成就 ${s.awardCount} 枚</span>
+            <span>💎 积分 ${s.points}</span>
+        </div>
+        <div class="weekly-ai-text markdown-body kd-detail">${loading ? '💭 AI 正在总结你的本周表现…' : renderMarkdown(weeklyAIText)}</div>
+        ${note ? `<div class="weekly-note">${escapeHtml(note)}</div>` : ''}
+        <div class="weekly-actions">
+            <button class="practice-quiz-btn practice-quiz-btn-secondary" id="weeklyRegenBtn" ${loading ? 'disabled style="opacity:0.5"' : ''}>🔄 重新生成</button>
+            <button class="practice-quiz-btn practice-quiz-btn-primary" id="weeklyImgBtn" ${loading ? 'disabled style="opacity:0.5"' : ''}>🖼 保存周报图片</button>
+        </div>
+    `;
+    $('weeklyRegenBtn').addEventListener('click', openWeeklyReport);
+    $('weeklyImgBtn').addEventListener('click', downloadWeeklyImage);
+}
+
+function downloadWeeklyImage() {
+    if (!weeklyStats || !weeklyAIText) { showToast('周报尚未生成完成'); return; }
+    const s = weeklyStats;
+    const W = 720, H = 940;
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // 背景
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#4f46e5');
+    bg.addColorStop(1, '#312e81');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // 顶部
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.font = 'bold 20px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('📚 代码错题集', 40, 54);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 30px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillText('本周 AI 复习周报', 40, 96);
+
+    // 白卡片
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.roundRect(40, 124, W - 80, H - 124 - 70, 20);
+    ctx.fill();
+
+    // 数据 2x2
+    const stats = [
+        ['复习打卡', s.reviewActions + ' 次'],
+        ['新增错题', s.newCount + ' 道'],
+        ['掌握错题', s.masteredCount + ' 道'],
+        ['练习正确率', s.practiceRate + '%']
+    ];
+    stats.forEach(([label, value], i) => {
+        const col = i % 2, row = Math.floor(i / 2);
+        const x = 70 + col * 300, y = 170 + row * 110;
+        ctx.fillStyle = '#f3f4f6';
+        ctx.beginPath();
+        ctx.roundRect(x, y, 260, 86, 14);
+        ctx.fill();
+        ctx.fillStyle = '#4f46e5';
+        ctx.font = 'bold 30px "PingFang SC","Microsoft YaHei",sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(value, x + 20, y + 48);
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '15px "PingFang SC","Microsoft YaHei",sans-serif';
+        ctx.fillText(label, x + 20, y + 74);
+    });
+
+    // 元信息
+    ctx.fillStyle = '#4b5563';
+    ctx.font = '15px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillText(`连续打卡 ${s.streak} 天 · 成就 ${s.awardCount} 枚 · 积分 ${s.points}`, 70, 420);
+
+    // AI 点评（纯文本换行）
+    const plain = weeklyAIText.replace(/[#*`>]/g, '').trim();
+    ctx.fillStyle = '#1f2937';
+    ctx.font = '16px "PingFang SC","Microsoft YaHei",sans-serif';
+    let y = 470;
+    const maxW = W - 140;
+    const chunks = plain.split('\n').filter(Boolean);
+    chunks.slice(0, 12).forEach(line => {
+        // 简单按字符数截断换行
+        let current = '';
+        for (const ch of line) {
+            if (ctx.measureText(current + ch).width > maxW && current) {
+                ctx.fillText(current, 70, y);
+                y += 26;
+                current = ch;
+            } else {
+                current += ch;
+            }
+        }
+        if (current) { ctx.fillText(current, 70, y); y += 26; }
+    });
+
+    // 底部
+    ctx.fillStyle = '#9ca3af';
+    ctx.font = '14px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('记录易错点，让每次错误都成为进步', W / 2, H - 34);
+
+    canvas.toBlob(blob => {
+        if (!blob) { showToast('生成图片失败'); return; }
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'AI复习周报.png';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        showToast('✓ 周报图片已保存');
+    }, 'image/png');
 }

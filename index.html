@@ -120,6 +120,7 @@
                 <p>基于艾宾浩斯遗忘曲线，为你安排科学复习</p>
             </div>
         </div>
+        <div class="forgotten-list" id="forgottenList"></div>
         <div class="review-timeline" id="reviewTimeline">
             <div class="empty-state">
                 <div class="empty-icon">✨</div>
@@ -179,8 +180,12 @@
             </div>
 
             <div class="form-group">
-                <label class="form-label">考点标签（用逗号分隔多个）</label>
+                <div class="form-label-row">
+                    <label class="form-label">考点标签（用逗号分隔多个）</label>
+                    <button type="button" class="ai-tag-btn" id="aiTagBtn">🤖 AI 智能打标</button>
+                </div>
                 <input type="text" id="inputTags" class="form-input" placeholder="例如: 快速排序, 递归, 分治算法">
+                <p class="ai-tag-hint" id="aiTagHint">粘贴题目和代码后点击 AI 智能打标，自动推荐标签、标题和错因</p>
             </div>
 
             <div class="form-group">
@@ -351,6 +356,12 @@
         </div>
 
         <div class="stats-card">
+            <h3 class="stats-card-title">🤖 AI 复习周报</h3>
+            <p class="stats-card-sub">汇总近 7 天学习数据，AI 点评并给出下周建议</p>
+            <button class="ai-gen-btn" style="width:100%" onclick="openWeeklyReport()">📈 生成本周报告</button>
+        </div>
+
+        <div class="stats-card">
             <h3 class="stats-card-title">🏅 成就勋章</h3>
             <p class="stats-card-sub">坚持学习，解锁更多成就</p>
             <div class="achievement-summary">
@@ -486,6 +497,17 @@
                 <button class="icon-btn" id="closeSyncModal" style="background:#eef2ff;color:#4f46e5">✕</button>
             </div>
             <div class="sync-body" id="syncBody"></div>
+        </div>
+    </div>
+
+    <!-- AI 复习周报弹窗 -->
+    <div class="modal-overlay" id="weeklyModal" style="display:none">
+        <div class="modal-content weekly-modal-content">
+            <div class="practice-quiz-header">
+                <span class="knowledge-modal-title">📈 AI 复习周报</span>
+                <button class="icon-btn" id="closeWeeklyModal" style="background:#eef2ff;color:#4f46e5">✕</button>
+            </div>
+            <div class="weekly-body" id="weeklyBody"></div>
         </div>
     </div>
 </main>
