@@ -171,7 +171,7 @@
                         <span class="upload-icon">📷</span>
                         <span>拍照/选择图片</span>
                     </button>
-                    <button type="button" class="upload-btn" id="ocrEntryBtn" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)">
+                    <button type="button" class="upload-btn" id="ocrEntryBtn" style="background:linear-gradient(135deg,#0071e3,#5856d6)">
                         <span class="upload-icon">🏷</span>
                         <span>OCR 拍照识别</span>
                     </button>
@@ -231,7 +231,7 @@
         <div class="modal-content knowledge-modal-content">
             <div class="search-box">
                 <span id="knowledgeModalTitle" class="knowledge-modal-title">知识点详情</span>
-                <button class="icon-btn" id="closeKnowledgeModal" style="background:#eef2ff;color:#4f46e5">✕</button>
+                <button class="icon-btn" id="closeKnowledgeModal" style="background:#e6f1ff;color:#0071e3">✕</button>
             </div>
             <div class="knowledge-detail" id="knowledgeDetail"></div>
         </div>
@@ -276,7 +276,7 @@
         <div class="modal-content practice-modal-content">
             <div class="practice-quiz-header">
                 <span id="practiceModalTitle" class="knowledge-modal-title">答题</span>
-                <button class="icon-btn" id="closePracticeModal" style="background:#eef2ff;color:#4f46e5">✕</button>
+                <button class="icon-btn" id="closePracticeModal" style="background:#e6f1ff;color:#0071e3">✕</button>
             </div>
             <div class="practice-quiz" id="practiceQuiz"></div>
         </div>
@@ -289,7 +289,7 @@
                 <span id="aiModalTitle" class="knowledge-modal-title">🤖 AI 举一反三</span>
                 <div class="ai-header-actions">
                     <button class="ai-link-btn" id="openAISettingsBtn">⚙️ 配置</button>
-                    <button class="icon-btn" id="closeAIModal" style="background:#eef2ff;color:#4f46e5">✕</button>
+                    <button class="icon-btn" id="closeAIModal" style="background:#e6f1ff;color:#0071e3">✕</button>
                 </div>
             </div>
             <div class="ai-body" id="aiBody"></div>
@@ -301,7 +301,7 @@
         <div class="modal-content chat-modal-content">
             <div class="practice-quiz-header ai-modal-header">
                 <span id="chatModalTitle" class="knowledge-modal-title">💬 AI 对话</span>
-                <button class="icon-btn" id="closeChatModal" style="background:#eef2ff;color:#4f46e5">✕</button>
+                <button class="icon-btn" id="closeChatModal" style="background:#e6f1ff;color:#0071e3">✕</button>
             </div>
             <div class="chat-body" id="chatBody"></div>
             <div class="chat-input-bar">
@@ -316,7 +316,7 @@
         <div class="modal-content ai-settings-content">
             <div class="practice-quiz-header">
                 <span class="knowledge-modal-title">⚙️ AI 配置</span>
-                <button class="icon-btn" id="closeAISettings" style="background:#eef2ff;color:#4f46e5">✕</button>
+                <button class="icon-btn" id="closeAISettings" style="background:#e6f1ff;color:#0071e3">✕</button>
             </div>
             <div class="ai-settings-body">
                 <div class="ai-settings-tip">
@@ -418,8 +418,8 @@
                 <button class="trend-tab" data-range="month" onclick="setTrendRange('month')">按月</button>
             </div>
             <div class="trend-legend">
-                <span class="trend-legend-item"><i class="legend-line" style="background:#4f46e5"></i>新增错题</span>
-                <span class="trend-legend-item"><i class="legend-line" style="background:#22c55e"></i>已掌握</span>
+                <span class="trend-legend-item"><i class="legend-line" style="background:#0071e3"></i>新增错题</span>
+                <span class="trend-legend-item"><i class="legend-line" style="background:#34c759"></i>已掌握</span>
             </div>
             <div class="stats-empty" id="statsTrendEmpty" style="display:none">
                 <p class="empty-text">暂无错题数据</p>
@@ -448,9 +448,9 @@
             <p class="stats-card-sub">导出错题 PDF 打印复习，或备份/恢复/云端同步数据</p>
             <div class="data-mgmt-btns">
                 <button class="ai-gen-btn" style="margin-right:8px" onclick="exportDataPDF()">🖨 导出 PDF</button>
-                <button class="ai-gen-btn" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)" onclick="exportBackup()">💾 备份 JSON</button>
-                <button class="ai-gen-btn" style="background:linear-gradient(135deg,#22c55e,#14b8a6)" onclick="document.getElementById('backupFile').click()">📥 恢复备份</button>
-                <button class="ai-gen-btn" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)" onclick="openSyncModal()">☁️ 云端同步</button>
+                <button class="ai-gen-btn" style="background:linear-gradient(135deg,#0071e3,#5856d6)" onclick="exportBackup()">💾 备份 JSON</button>
+                <button class="ai-gen-btn" style="background:linear-gradient(135deg,#34c759,#30b0c7)" onclick="document.getElementById('backupFile').click()">📥 恢复备份</button>
+                <button class="ai-gen-btn" style="background:linear-gradient(135deg,#8e44ce,#5856d6)" onclick="openSyncModal()">☁️ 云端同步</button>
             </div>
             <input type="file" id="backupFile" accept=".json,application/json" style="display:none" onchange="importBackup(this)">
         </div>
@@ -461,7 +461,7 @@
         <div class="modal-content challenge-modal-content">
             <div class="practice-quiz-header">
                 <span class="knowledge-modal-title">🎯 随机抽考挑战</span>
-                <button class="icon-btn" id="closeChallengeModal" style="background:#eef2ff;color:#4f46e5">✕</button>
+                <button class="icon-btn" id="closeChallengeModal" style="background:#e6f1ff;color:#0071e3">✕</button>
             </div>
             <div class="challenge-body" id="challengeBody"></div>
         </div>
@@ -472,7 +472,7 @@
         <div class="modal-content share-modal-content">
             <div class="share-modal-title-row">
                 <span class="knowledge-modal-title">📤 分享错题</span>
-                <button class="icon-btn" id="closeShareModal" style="background:#eef2ff;color:#4f46e5">✕</button>
+                <button class="icon-btn" id="closeShareModal" style="background:#e6f1ff;color:#0071e3">✕</button>
             </div>
             <div class="share-options" id="shareOptions"></div>
         </div>
@@ -483,7 +483,7 @@
         <div class="modal-content ocr-modal-content">
             <div class="practice-quiz-header">
                 <span class="knowledge-modal-title">🏷 OCR 拍照识别录入</span>
-                <button class="icon-btn" id="closeOcrModal" style="background:#eef2ff;color:#4f46e5">✕</button>
+                <button class="icon-btn" id="closeOcrModal" style="background:#e6f1ff;color:#0071e3">✕</button>
             </div>
             <div class="ocr-body" id="ocrBody"></div>
         </div>
@@ -494,7 +494,7 @@
         <div class="modal-content sync-modal-content">
             <div class="practice-quiz-header">
                 <span class="knowledge-modal-title">☁️ 云端同步</span>
-                <button class="icon-btn" id="closeSyncModal" style="background:#eef2ff;color:#4f46e5">✕</button>
+                <button class="icon-btn" id="closeSyncModal" style="background:#e6f1ff;color:#0071e3">✕</button>
             </div>
             <div class="sync-body" id="syncBody"></div>
         </div>
@@ -505,7 +505,7 @@
         <div class="modal-content weekly-modal-content">
             <div class="practice-quiz-header">
                 <span class="knowledge-modal-title">📈 AI 复习周报</span>
-                <button class="icon-btn" id="closeWeeklyModal" style="background:#eef2ff;color:#4f46e5">✕</button>
+                <button class="icon-btn" id="closeWeeklyModal" style="background:#e6f1ff;color:#0071e3">✕</button>
             </div>
             <div class="weekly-body" id="weeklyBody"></div>
         </div>

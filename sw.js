@@ -2,7 +2,7 @@
  * Service Worker - PWA 离线支持
  * 缓存策略：首次访问后预缓存核心资源；运行时缓存同源资源
  * ======================================== */
-const CACHE_NAME = 'code-mistake-book-v3';
+const CACHE_NAME = 'code-mistake-book-v4';
 
 // 预缓存的核心资源
 const CORE_ASSETS = [

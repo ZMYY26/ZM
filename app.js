@@ -394,7 +394,7 @@ function getStatusClass(mistake, reviewStatus) {
 }
 
 function getReviewDateText(mistake) {
-    if (mistake.status === 'mastered') return '<span style="color:#22c55e">✓ 已掌握</span>';
+    if (mistake.status === 'mastered') return '<span style="color:#34c759">✓ 已掌握</span>';
 
     const nextReview = getNextReviewDate(mistake);
     if (!nextReview) return '<span>✓ 复习完成</span>';
@@ -404,8 +404,8 @@ function getReviewDateText(mistake) {
     const today = now.getTime();
     const diffDays = Math.ceil((nextReview - today) / (24 * 60 * 60 * 1000));
 
-    if (diffDays <= 0) return '<span style="color:#ef4444">🔥 今天复习</span>';
-    if (diffDays === 1) return '<span style="color:#f59e0b">⏰ 明天复习</span>';
+    if (diffDays <= 0) return '<span style="color:#ff3b30">🔥 今天复习</span>';
+    if (diffDays === 1) return '<span style="color:#ff9500">⏰ 明天复习</span>';
     return `<span>📅 ${diffDays}天后复习</span>`;
 }
 
@@ -862,9 +862,9 @@ function renderDetail(m) {
         ` : ''}
 
         <button class="ai-gen-btn" onclick="openAIModal('${m.id}')">🤖 AI 举一反三</button>
-        <button class="ai-gen-btn" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)" onclick="openAIDiagnosis('${m.id}')">🔍 AI 诊断</button>
-        <button class="ai-gen-btn" style="background:linear-gradient(135deg,#F43F5E,#DB2777)" onclick="openAIChat('${m.id}')">💬 AI 对话</button>
-        <button class="ai-gen-btn" style="background:linear-gradient(135deg,#f59e0b,#ef4444)" onclick="openShareModal('${m.id}')">📤 分享</button>
+        <button class="ai-gen-btn" style="background:linear-gradient(135deg,#0071e3,#5856d6)" onclick="openAIDiagnosis('${m.id}')">🔍 AI 诊断</button>
+        <button class="ai-gen-btn" style="background:linear-gradient(135deg,#ff2d55,#d60a6a)" onclick="openAIChat('${m.id}')">💬 AI 对话</button>
+        <button class="ai-gen-btn" style="background:linear-gradient(135deg,#ff9500,#ff3b30)" onclick="openShareModal('${m.id}')">📤 分享</button>
         <div class="detail-footer">
             ${m.status !== 'mastered' ? `
                 <button class="action-btn success" onclick="markMastered('${m.id}')">✓ 已掌握</button>
@@ -907,8 +907,8 @@ function generateShareCard(m) {
 
     // 背景渐变
     const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#4f46e5');
-    bg.addColorStop(1, '#312e81');
+    bg.addColorStop(0, '#0071e3');
+    bg.addColorStop(1, '#3a2d70');
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
@@ -919,7 +919,7 @@ function generateShareCard(m) {
     ctx.fillText('📚 代码错题集', 40, 56);
 
     // 语言徽章
-    ctx.fillStyle = '#22d3ee';
+    ctx.fillStyle = '#5ac8fa';
     ctx.beginPath();
     ctx.roundRect(40, 84, 130, 34, 8);
     ctx.fill();
@@ -942,7 +942,7 @@ function generateShareCard(m) {
         ctx.beginPath();
         ctx.roundRect(tagX, 210, w, 30, 15);
         ctx.fill();
-        ctx.fillStyle = '#e9d5ff';
+        ctx.fillStyle = '#e0c2f5';
         ctx.font = '13px "PingFang SC","Microsoft YaHei",sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('#' + t, tagX + w / 2, 230);
@@ -959,25 +959,25 @@ function generateShareCard(m) {
     // 内容区标题（截断显示）
     let y = cardTop + 45;
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#ef4444';
+    ctx.fillStyle = '#ff3b30';
     ctx.font = 'bold 18px "PingFang SC","Microsoft YaHei",sans-serif';
     ctx.fillText('❌ 错误代码', 70, y);
     y += 28;
-    ctx.fillStyle = '#1f2937';
+    ctx.fillStyle = '#1d1d1f';
     ctx.font = '15px Menlo,Consolas,monospace';
-    y = drawCodeBlock(ctx, m.wrongCode, 70, y, W - 140, '#fee2e2');
+    y = drawCodeBlock(ctx, m.wrongCode, 70, y, W - 140, '#ffe3e0');
 
     const manualY = y + 14;
-    ctx.fillStyle = '#22c55e';
+    ctx.fillStyle = '#34c759';
     ctx.font = 'bold 18px "PingFang SC","Microsoft YaHei",sans-serif';
     ctx.fillText('✅ 正确代码', 70, manualY);
     y = manualY + 28;
-    ctx.fillStyle = '#1f2937';
+    ctx.fillStyle = '#1d1d1f';
     ctx.font = '15px Menlo,Consolas,monospace';
-    drawCodeBlock(ctx, m.rightCode || '（未记录）', 70, y, W - 140, '#dcfce7');
+    drawCodeBlock(ctx, m.rightCode || '（未记录）', 70, y, W - 140, '#e8f8ee');
 
     // 底部
-    ctx.fillStyle = '#6b7280';
+    ctx.fillStyle = '#6e6e73';
     ctx.font = '14px "PingFang SC","Microsoft YaHei",sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('记录易错点，让每次错误都成为进步', W / 2, H - 62);
@@ -1016,7 +1016,7 @@ function drawCodeBlock(ctx, code, x, startY, maxW, bgColor) {
         ctx.roundRect(x - 8, startY - 20, maxW + 16, h, 10);
         ctx.fill();
     }
-    ctx.fillStyle = '#1f2937';
+    ctx.fillStyle = '#1d1d1f';
     ctx.font = '14px Menlo,Consolas,monospace';
     shown.forEach((line, i) => {
         const clipped = line.length > 52 ? line.slice(0, 52) + '…' : line;
@@ -1801,12 +1801,12 @@ function logActivity(ts) {
 const POINTS_KEY = 'code_points_v1';
 
 const LEVELS = [
-    { level: 1, name: '青铜学徒', min: 0,   icon: '🥉', color: '#b45309' },
-    { level: 2, name: '白银练手', min: 50,  icon: '🥈', color: '#64748b' },
-    { level: 3, name: '黄金进阶', min: 150, icon: '🥇', color: '#eab308' },
-    { level: 4, name: '铂金达人', min: 300, icon: '💎', color: '#06b6d4' },
-    { level: 5, name: '钻石高手', min: 600, icon: '🔥', color: '#0ea5e9' },
-    { level: 6, name: '荣耀宗师', min: 1000,icon: '🏆', color: '#8b5cf6' },
+    { level: 1, name: '青铜学徒', min: 0,   icon: '🥉', color: '#b86500' },
+    { level: 2, name: '白银练手', min: 50,  icon: '🥈', color: '#6e6e73' },
+    { level: 3, name: '黄金进阶', min: 150, icon: '🥇', color: '#ffb84d' },
+    { level: 4, name: '铂金达人', min: 300, icon: '💎', color: '#30b0c7' },
+    { level: 5, name: '钻石高手', min: 600, icon: '🔥', color: '#0071e3' },
+    { level: 6, name: '荣耀宗师', min: 1000,icon: '🏆', color: '#8e44ce' },
 ];
 
 let userPoints = 0;
@@ -1877,12 +1877,12 @@ function renderPoints() {
  * ======================================== */
 
 const STREAK_BADGES = [
-    { days: 3,   icon: '🔥', name: '初心者',   color: '#f97316' },
-    { days: 7,   icon: '⚡', name: '一周坚持', color: '#eab308' },
-    { days: 14,  icon: '🌟', name: '半月达人', color: '#84cc16' },
-    { days: 30,  icon: '💎', name: '月度王者', color: '#06b6d4' },
-    { days: 60,  icon: '👑', name: '持之以恒', color: '#8b5cf6' },
-    { days: 100, icon: '🏆', name: '百日传说', color: '#f43f5e' },
+    { days: 3,   icon: '🔥', name: '初心者',   color: '#ff9500' },
+    { days: 7,   icon: '⚡', name: '一周坚持', color: '#ffb84d' },
+    { days: 14,  icon: '🌟', name: '半月达人', color: '#34c759' },
+    { days: 30,  icon: '💎', name: '月度王者', color: '#30b0c7' },
+    { days: 60,  icon: '👑', name: '持之以恒', color: '#8e44ce' },
+    { days: 100, icon: '🏆', name: '百日传说', color: '#ff2d55' },
 ];
 
 function calcStreak() {
@@ -2130,7 +2130,7 @@ function renderRadar() {
             <span class="radar-legend-title">弱点集中度（值越高越弱）</span>
             <ul class="radar-legend-list">
                 ${data.map((d, i) => {
-                    const color = d.score > 0.66 ? '#ef4444' : d.score > 0.33 ? '#f59e0b' : '#22c55e';
+                    const color = d.score > 0.66 ? '#ff3b30' : d.score > 0.33 ? '#ff9500' : '#34c759';
                     return `<li><i class="legend-dot" style="background:${color}"></i>${escapeHtml(d.tag)} <b>${Math.round(d.score * 100)}%</b></li>`;
                 }).join('')}
             </ul>
@@ -2219,7 +2219,7 @@ function renderTrend() {
     const n = buckets.length;
     const max = Math.max(1, ...buckets.flatMap(b => [b.created, b.mastered]));
 
-    const dateColors = { created: '#4f46e5', mastered: '#22c55e' };
+    const dateColors = { created: '#0071e3', mastered: '#34c759' };
 
     function path(keyName) {
         let d = '';
@@ -2271,10 +2271,10 @@ function renderTrend() {
     svg.innerHTML = `
         <svg viewBox="0 0 ${W} ${H}" style="width:100%">
             ${grid}
-            <path d="${area('created')}" fill="#4f46e5" opacity="0.08"/>
-            <path d="${path('created')}" fill="none" stroke="#4f46e5" stroke-width="2"/>
-            <path d="${area('mastered')}" fill="#22c55e" opacity="0.08"/>
-            <path d="${path('mastered')}" fill="none" stroke="#22c55e" stroke-width="2"/>
+            <path d="${area('created')}" fill="#0071e3" opacity="0.08"/>
+            <path d="${path('created')}" fill="none" stroke="#0071e3" stroke-width="2"/>
+            <path d="${area('mastered')}" fill="#34c759" opacity="0.08"/>
+            <path d="${path('mastered')}" fill="none" stroke="#34c759" stroke-width="2"/>
             ${dots}
             ${xLabels}
         </svg>
@@ -3726,16 +3726,16 @@ function exportDataPDF() {
     win.document.write(`<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
         <title>代码错题集复习资料</title>
         <style>
-            body { font-family: "PingFang SC","Microsoft YaHei",sans-serif; padding: 24px; color: #222; }
+            body { font-family: "PingFang SC","Microsoft YaHei",sans-serif; padding: 24px; color: #1d1d1f; }
             h1 { font-size: 20px; margin-bottom: 4px; }
-            .meta { color: #666; font-size: 12px; margin-bottom: 16px; }
+            .meta { color: #6e6e73; font-size: 12px; margin-bottom: 16px; }
             .block { margin: 20px 0; page-break-inside: avoid; }
-            .num { font-weight: bold; font-size: 16px; margin-bottom: 6px; color: #4f46e5; }
-            .info { font-size: 12px; color: #555; margin-bottom: 4px; }
-            .lbl { font-weight: bold; font-size: 13px; margin: 6px 0 2px; color: #333; }
-            pre { background: #f6f8fa; border: 1px solid #e5e7eb; padding: 8px 10px; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+            .num { font-weight: bold; font-size: 16px; margin-bottom: 6px; color: #0071e3; }
+            .info { font-size: 12px; color: #6e6e73; margin-bottom: 4px; }
+            .lbl { font-weight: bold; font-size: 13px; margin: 6px 0 2px; color: #1d1d1f; }
+            pre { background: #f0f0f2; border: 1px solid #d2d2d7; padding: 8px 10px; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
             .note { white-space: pre-wrap; font-size: 13px; }
-            hr { border: none; border-top: 1px dashed #d1d5db; margin: 16px 0; }
+            hr { border: none; border-top: 1px dashed #d2d2d7; margin: 16px 0; }
         </style>
     </head><body>
         <h1>代码错题集复习资料</h1>
@@ -4451,35 +4451,35 @@ function openShareModal(id) {
     $('shareOptions').innerHTML = `
         ${canNativeShare ? `
         <div class="share-option" onclick="shareNative()">
-            <div class="share-option-icon" style="background:#dcfce7">📤</div>
+            <div class="share-option-icon" style="background:#e8f8ee">📤</div>
             <div class="share-option-text">
                 <div class="share-option-name">系统分享</div>
                 <div class="share-option-hint">通过手机系统分享（含图片卡片）</div>
             </div>
         </div>` : ''}
         <div class="share-option" onclick="shareDownloadCard()">
-            <div class="share-option-icon" style="background:#dbeafe">🖼</div>
+            <div class="share-option-icon" style="background:#e6f4ff">🖼</div>
             <div class="share-option-text">
                 <div class="share-option-name">下载分享卡片</div>
                 <div class="share-option-hint">生成精美 PNG 图片，可发朋友圈 / 聊天群</div>
             </div>
         </div>
         <div class="share-option" onclick="shareCopyText()">
-            <div class="share-option-icon" style="background:#fef3c7">📋</div>
+            <div class="share-option-icon" style="background:#fff4e6">📋</div>
             <div class="share-option-text">
                 <div class="share-option-name">复制题目文本</div>
                 <div class="share-option-hint">复制到剪贴板，粘贴到聊天软件</div>
             </div>
         </div>
         <div class="share-option" onclick="shareCopyLink()">
-            <div class="share-option-icon" style="background:#ede9fe">🔗</div>
+            <div class="share-option-icon" style="background:#f7eefc">🔗</div>
             <div class="share-option-text">
                 <div class="share-option-name">复制应用链接</div>
                 <div class="share-option-hint">把错题本应用分享给同学</div>
             </div>
         </div>
         <div class="share-option" onclick="shareToWeibo()">
-            <div class="share-option-icon" style="background:#fee2e2">🐦</div>
+            <div class="share-option-icon" style="background:#ffe3e0">🐦</div>
             <div class="share-option-text">
                 <div class="share-option-name">分享到微博</div>
                 <div class="share-option-hint">跳转微博网页发布</div>
@@ -4730,7 +4730,7 @@ function renderSyncBody(statusHtml = '') {
         </div>
         <div class="sync-status ${syncConfig.user ? 'ok' : ''}" id="syncStatus">${statusHtml || (syncConfig.user ? '✅ 已连接 GitHub 账号：' + escapeHtml(syncConfig.user) : '💡 填写 Token 后先点击「检测连接」')}</div>
         <button class="practice-quiz-btn practice-quiz-btn-primary" onclick="saveSyncInputs(); syncTest()">🔌 检测连接</button>
-        <button class="practice-quiz-btn practice-quiz-btn-primary" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)" onclick="saveSyncInputs(); syncPush()">☁️ 立即备份上传</button>
+        <button class="practice-quiz-btn practice-quiz-btn-primary" style="background:linear-gradient(135deg,#8e44ce,#5856d6)" onclick="saveSyncInputs(); syncPush()">☁️ 立即备份上传</button>
         <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="saveSyncInputs(); syncPull(false)">📥 云端下载（合并到本地）</button>
         <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="saveSyncInputs(); syncPull(true)">♻️ 云端覆盖本地</button>
         <div style="font-size:12px;color:var(--text-secondary)">${lastText}</div>
@@ -4873,7 +4873,7 @@ async function aiAutoTag() {
 
     if (!aiConfig.apiKey || !aiConfig.baseURL || !aiConfig.model) {
         hint.textContent = '⚠️ 尚未配置 AI，点击 AI 举一反三弹窗中的「⚙️ 配置」先完成配置';
-        hint.style.color = '#b45309';
+        hint.style.color = '#b86500';
         showToast('请先配置 AI');
         return;
     }
@@ -4940,16 +4940,16 @@ ${wrongCode || '（无）'}`;
         if (data.category && !$('inputNote').value.includes(data.category)) {
             // 不自动写类别，避免污染笔记；仅在 hint 展示
             hint.textContent = `✅ 已推荐 ${newTags.length} 个标签${data.category ? '（分类：' + data.category + '）' : ''}，可手动微调后保存`;
-            hint.style.color = '#166534';
+            hint.style.color = '#1a5c2e';
         } else {
             hint.textContent = '✅ AI 已打标，可手动微调后保存';
-            hint.style.color = '#166534';
+            hint.style.color = '#1a5c2e';
         }
         showToast('✅ AI 打标完成');
     } catch (e) {
         console.error('AI 打标失败:', e);
         hint.textContent = '⚠️ 打标失败：' + (e.message || '未知错误') + '，请重试或手动填写';
-        hint.style.color = '#b91c1c';
+        hint.style.color = '#c90010';
     } finally {
         btn.disabled = false;
         btn.textContent = '🤖 AI 智能打标';
@@ -5108,8 +5108,8 @@ function downloadWeeklyImage() {
 
     // 背景
     const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#4f46e5');
-    bg.addColorStop(1, '#312e81');
+    bg.addColorStop(0, '#0071e3');
+    bg.addColorStop(1, '#3a2d70');
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
@@ -5138,27 +5138,27 @@ function downloadWeeklyImage() {
     stats.forEach(([label, value], i) => {
         const col = i % 2, row = Math.floor(i / 2);
         const x = 70 + col * 300, y = 170 + row * 110;
-        ctx.fillStyle = '#f3f4f6';
+        ctx.fillStyle = '#f0f0f2';
         ctx.beginPath();
         ctx.roundRect(x, y, 260, 86, 14);
         ctx.fill();
-        ctx.fillStyle = '#4f46e5';
+        ctx.fillStyle = '#0071e3';
         ctx.font = 'bold 30px "PingFang SC","Microsoft YaHei",sans-serif';
         ctx.textAlign = 'left';
         ctx.fillText(value, x + 20, y + 48);
-        ctx.fillStyle = '#6b7280';
+        ctx.fillStyle = '#6e6e73';
         ctx.font = '15px "PingFang SC","Microsoft YaHei",sans-serif';
         ctx.fillText(label, x + 20, y + 74);
     });
 
     // 元信息
-    ctx.fillStyle = '#4b5563';
+    ctx.fillStyle = '#48484a';
     ctx.font = '15px "PingFang SC","Microsoft YaHei",sans-serif';
     ctx.fillText(`连续打卡 ${s.streak} 天 · 成就 ${s.awardCount} 枚 · 积分 ${s.points}`, 70, 420);
 
     // AI 点评（纯文本换行）
     const plain = weeklyAIText.replace(/[#*`>]/g, '').trim();
-    ctx.fillStyle = '#1f2937';
+    ctx.fillStyle = '#1d1d1f';
     ctx.font = '16px "PingFang SC","Microsoft YaHei",sans-serif';
     let y = 470;
     const maxW = W - 140;
@@ -5179,7 +5179,7 @@ function downloadWeeklyImage() {
     });
 
     // 底部
-    ctx.fillStyle = '#9ca3af';
+    ctx.fillStyle = '#8e8e93';
     ctx.font = '14px "PingFang SC","Microsoft YaHei",sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('记录易错点，让每次错误都成为进步', W / 2, H - 34);
