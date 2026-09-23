@@ -2377,7 +2377,8 @@ body {
 }
 
 .streak-card {
-    background: linear-gradient(135deg, #fff4e6, #ffe3b3 40%, #ffb84d);
+    background: var(--card);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 14px 16px;
     box-shadow: var(--shadow);
@@ -2404,14 +2405,14 @@ body {
 .streak-num {
     font-size: 36px;
     font-weight: 800;
-    color: #8a5200;
+    color: var(--text);
     line-height: 1;
 }
 
 .streak-unit {
     font-size: 14px;
     font-weight: 600;
-    color: #b86500;
+    color: var(--text-secondary);
 }
 
 .streak-fire {
@@ -2426,12 +2427,12 @@ body {
 .streak-badge-name-lg {
     font-size: 14px;
     font-weight: 700;
-    color: #6b4200;
+    color: var(--text);
 }
 
 .streak-today {
     font-size: 11px;
-    color: #8a5200;
+    color: var(--text-secondary);
     margin-top: 2px;
 }
 
@@ -2441,13 +2442,13 @@ body {
 
 .streak-progress-label {
     font-size: 11px;
-    color: #8a5200;
+    color: var(--text-secondary);
     margin-bottom: 4px;
 }
 
 .streak-progress-track {
     height: 6px;
-    background: rgba(138, 82, 0, 0.15);
+    background: var(--surface-2);
     border-radius: 3px;
     overflow: hidden;
 }
@@ -2462,7 +2463,7 @@ body {
     margin-top: 10px;
     font-size: 12px;
     font-weight: 600;
-    color: #6b4200;
+    color: var(--text-secondary);
 }
 
 .streak-badges {
@@ -2487,8 +2488,8 @@ body {
 }
 
 .streak-badge.unlocked {
-    background: rgba(255, 255, 255, 0.65);
-    border: 1px solid rgba(138, 82, 0, 0.2);
+    background: var(--surface);
+    border: 1px solid var(--border);
 }
 
 .streak-badge.locked {
@@ -2504,13 +2505,13 @@ body {
 .streak-badge-name {
     font-size: 10px;
     font-weight: 600;
-    color: #6b4200;
+    color: var(--text-secondary);
     white-space: nowrap;
 }
 
 .streak-badge-days {
     font-size: 9px;
-    color: #8a5200;
+    color: var(--text-secondary);
 }
 
 /* ========== 学习积分与等级 ========== */
@@ -2916,11 +2917,12 @@ body {
 
 /* ========== 今日挑战卡片（首页） ========== */
 .challenge-card {
-    background: linear-gradient(135deg, #ff9500, #ff3b30);
+    background: var(--card);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 14px 16px;
     margin-bottom: 12px;
-    color: white;
+    color: var(--text);
     box-shadow: var(--shadow);
     cursor: pointer;
     display: flex;
@@ -2932,8 +2934,8 @@ body {
 .challenge-card:active { transform: scale(0.98); }
 .challenge-card-info { flex: 1; min-width: 0; }
 .challenge-card-title { font-size: 15px; font-weight: 700; }
-.challenge-card-sub { font-size: 12px; opacity: 0.9; margin-top: 2px; }
-.challenge-card-go { font-size: 22px; }
+.challenge-card-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.challenge-card-go { font-size: 22px; color: var(--primary); }
 
 /* ========== 挑战模态框 ========== */
 .challenge-modal-content {
