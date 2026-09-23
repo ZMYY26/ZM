@@ -56,8 +56,8 @@ body {
     position: sticky;
     top: 0;
     z-index: 100;
-    background: linear-gradient(135deg, var(--primary), var(--primary-light));
-    color: white;
+    background: #1d1d1f;
+    color: #f5f5f7;
     padding: 12px 16px;
     display: flex;
     align-items: center;
@@ -357,7 +357,7 @@ body {
     gap: 6px;
     padding: 8px 14px;
     border-radius: 20px;
-    background: linear-gradient(135deg, #e6f1ff, #cce2ff);
+    background: #e6f1ff;
     color: var(--primary);
     font-size: 13px;
     font-weight: 500;
@@ -405,7 +405,7 @@ body {
 
 .lang-bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--primary), var(--primary-light));
+    background: var(--primary);
     border-radius: 10px;
     transition: width 0.3s;
 }
@@ -420,21 +420,22 @@ body {
 
 /* ========== 复习页 ========== */
 .review-header {
-    background: linear-gradient(135deg, #fff4e6, #ffe3b3);
+    background: var(--card);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 16px;
     margin-bottom: 12px;
 }
 
 .review-header h3 {
-    color: #8a5200;
+    color: var(--text);
     margin-bottom: 8px;
     font-size: 15px;
 }
 
 .review-tip {
     font-size: 12px;
-    color: #b86500;
+    color: var(--text-secondary);
 }
 
 .review-timeline {
@@ -650,7 +651,7 @@ body {
 .submit-btn {
     width: 100%;
     padding: 14px;
-    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    background: var(--primary);
     color: white;
     border: none;
     border-radius: 8px;
@@ -774,9 +775,9 @@ body {
     color: var(--text);
     line-height: 1.6;
     padding: 12px;
-    background: #fff9e0;
+    background: #e6f1ff;
     border-radius: 8px;
-    border-left: 3px solid var(--warning);
+    border-left: 3px solid #0071e3;
     white-space: pre-wrap;
 }
 
@@ -902,7 +903,7 @@ body {
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    background: var(--primary);
     color: white;
     font-size: 28px;
     font-weight: 300;
@@ -1076,7 +1077,7 @@ body {
 }
 
 .knowledge-cat-tab.active {
-    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    background: var(--primary);
     color: white;
     border-color: transparent;
 }
@@ -1266,7 +1267,7 @@ body {
     display: block;
     width: 100%;
     padding: 12px;
-    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    background: var(--primary);
     color: white;
     border: none;
     border-radius: 8px;
@@ -1310,8 +1311,8 @@ body {
 
 /* ========== 练习页面 ========== */
 .practice-header {
-    background: linear-gradient(135deg, #0071e3, #42a1ff);
-    color: white;
+    background: #1d1d1f;
+    color: #f5f5f7;
     border-radius: var(--radius);
     padding: 18px 16px;
     margin-bottom: 12px;
@@ -1389,7 +1390,7 @@ body {
 }
 
 .practice-cat-btn.active {
-    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    background: var(--primary);
     color: white;
     border-color: transparent;
 }
@@ -1566,12 +1567,12 @@ body {
 }
 
 .practice-quiz-explanation {
-    background: #fff4e6;
-    border-left: 4px solid var(--warning);
+    background: #e6f1ff;
+    border-left: 4px solid #0071e3;
     padding: 12px 14px;
     border-radius: 8px;
     font-size: 13px;
-    color: #8a5200;
+    color: var(--text);
     line-height: 1.6;
     margin-bottom: 14px;
 }
@@ -1602,7 +1603,7 @@ body {
 }
 
 .practice-quiz-btn-primary {
-    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    background: var(--primary);
     color: white;
 }
 
@@ -1669,7 +1670,7 @@ body {
     width: 100%;
     padding: 12px;
     margin: 14px 0;
-    background: linear-gradient(135deg, #5856d6, #af52de);
+    background: #0071e3;
     color: white;
     border: none;
     border-radius: 8px;
@@ -1697,7 +1698,7 @@ body {
 }
 
 .ai-modal-header {
-    background: linear-gradient(135deg, #5856d6, #af52de);
+    background: #0071e3;
     color: white;
 }
 
@@ -1789,7 +1790,7 @@ body {
     width: 44px;
     height: 44px;
     border: 4px solid #cce2ff;
-    border-top-color: #5856d6;
+    border-top-color: #0071e3;
     border-radius: 50%;
     margin: 0 auto 16px;
     animation: ai-spin 0.9s linear infinite;
@@ -1818,7 +1819,7 @@ body {
 
 .diag-summary {
     padding: 12px 14px;
-    background: linear-gradient(135deg, #e6f1ff, #e6f4ff);
+    background: #e6f1ff;
     border-left: 4px solid var(--primary);
     border-radius: 8px;
     font-size: 14px;
@@ -1840,13 +1841,13 @@ body {
 }
 
 .diag-cause {
-    background: #fff4e6;
-    border: 1px solid #ffd9b3;
-    border-left: 4px solid #ff9500;
+    background: #e6f1ff;
+    border: 1px solid #cce2ff;
+    border-left: 4px solid #0071e3;
     border-radius: 8px;
     padding: 10px 12px;
     font-size: 13px;
-    color: #7a3a00;
+    color: var(--text);
     line-height: 1.6;
     word-break: break-word;
 }
@@ -1880,8 +1881,8 @@ body {
 }
 
 .diag-tips {
-    background: #f7eefc;
-    border: 1px solid #e0c2f5;
+    background: #e6f1ff;
+    border: 1px solid #cce2ff;
     border-radius: 8px;
     padding: 10px 12px;
 }
@@ -1893,7 +1894,7 @@ body {
 
 .diag-tips li {
     font-size: 13px;
-    color: #4a1d6e;
+    color: #0058b0;
     margin: 4px 0;
     line-height: 1.5;
 }
@@ -1939,7 +1940,7 @@ body {
     border-radius: 10px;
     padding: 14px;
     box-shadow: var(--shadow);
-    border-left: 4px solid #af52de;
+    border-left: 4px solid #42a1ff;
 }
 
 .ai-card-meta {
@@ -2010,13 +2011,13 @@ body {
 
 /* 练习页"AI变式"分类按钮 */
 .practice-cat-btn.ai-cat-btn {
-    background: linear-gradient(135deg, #e6f1ff, #f7eefc);
-    color: #5856d6;
+    background: #e6f1ff;
+    color: #0071e3;
     border-color: #b3d4ff;
 }
 
 .practice-cat-btn.ai-cat-btn.active {
-    background: linear-gradient(135deg, #5856d6, #af52de);
+    background: #0071e3;
     color: white;
     border-color: transparent;
 }
@@ -2034,9 +2035,9 @@ body {
 }
 
 .ai-type-badge.code {
-    background: #f7eefc;
-    color: #af52de;
-    border: 1px solid #e0c2f5;
+    background: #e6f1ff;
+    color: #42a1ff;
+    border: 1px solid #cce2ff;
 }
 
 /* 题干中的代码块 */
@@ -2079,8 +2080,8 @@ body {
 
 /* 答案解析里的代码片段 */
 .practice-quiz-explanation code {
-    background: #fff4e6;
-    color: #8a5200;
+    background: #f0f0f2;
+    color: var(--text);
     padding: 1px 6px;
     border-radius: 4px;
     font-family: 'Menlo', 'Consolas', monospace;
@@ -2091,11 +2092,11 @@ body {
 .ai-mnemonic {
     margin-top: 10px;
     padding: 10px 12px;
-    background: linear-gradient(135deg, #fff4e6, #ffe3b3);
-    border-left: 3px solid #ff9500;
+    background: #e6f1ff;
+    border-left: 3px solid #0071e3;
     border-radius: 6px;
     font-size: 13px;
-    color: #8a5200;
+    color: var(--text);
     font-weight: 500;
     line-height: 1.6;
 }
@@ -2106,7 +2107,7 @@ body {
 .run-btn {
     margin-left: auto;
     padding: 4px 12px;
-    background: linear-gradient(135deg, #30d158, #248a3d);
+    background: #34c759;
     color: white;
     border: none;
     border-radius: 14px;
@@ -2213,7 +2214,7 @@ body {
     width: 14px;
     height: 14px;
     border: 2px solid #38383a;
-    border-top-color: #30d158;
+    border-top-color: #34c759;
     border-radius: 50%;
     animation: run-spin 0.8s linear infinite;
 }
@@ -2533,14 +2534,14 @@ body {
 .points-num {
     font-size: 30px;
     font-weight: 800;
-    color: #ff9500;
+    color: #0071e3;
     line-height: 1;
 }
 
 .points-unit {
     font-size: 13px;
     font-weight: 600;
-    color: #b86500;
+    color: var(--text-secondary);
     margin-left: 2px;
 }
 
@@ -2829,7 +2830,7 @@ body {
 
 .markdown-body code {
     background: #f0f0f2;
-    color: #d60a6a;
+    color: #0071e3;
     padding: 1px 5px;
     border-radius: 4px;
     font-size: 12px;
@@ -2885,7 +2886,7 @@ body {
     background: var(--surface);
 }
 [data-theme="dark"] .icon-btn[style*="background:#e6f1ff"] {
-    background: #3a2d70 !important;
+    background: #0a3d7a !important;
     color: #b3d4ff !important;
 }
 [data-theme="dark"] .chat-textarea {
@@ -2906,7 +2907,7 @@ body {
 [data-theme="dark"] .heat-cell.empty { background: #1c1c1e; }
 [data-theme="dark"] .review-plan-item { background: var(--surface); border-color: var(--border); }
 [data-theme="dark"] .review-plan-day-head { background: var(--card); }
-[data-theme="dark"] .points-card { background: linear-gradient(135deg, #3a2d70, #211b3a); }
+[data-theme="dark"] .points-card { background: #0a3d7a; }
 [data-theme="dark"] .cal-day-cell { background: var(--surface); }
 [data-theme="dark"] .modal-content { box-shadow: var(--shadow-lg); }
 
@@ -2996,7 +2997,7 @@ body {
 }
 .challenge-progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #ff9500, #ff3b30);
+    background: #0071e3;
     border-radius: 3px;
     transition: width 0.3s;
 }
@@ -3125,8 +3126,8 @@ body {
     text-align: center;
     transition: transform 0.15s;
 }
-.achievement-item.unlocked { background: linear-gradient(135deg, #fff4e6, #ffe3b3); border-color: #ff9500; }
-[data-theme="dark"] .achievement-item.unlocked { background: linear-gradient(135deg, #3b2f0f, #4b3a12); border-color: #ff9500; }
+.achievement-item.unlocked { background: #e6f1ff; border-color: #0071e3; }
+[data-theme="dark"] .achievement-item.unlocked { background: #0a3d7a; border-color: #42a1ff; }
 .achievement-item.locked { opacity: 0.45; }
 .achievement-icon { font-size: 26px; }
 .achievement-name { font-size: 12px; font-weight: 600; color: var(--text); margin-top: 4px; }
@@ -3226,7 +3227,7 @@ body {
 }
 .ocr-progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #0071e3, #42a1ff);
+    background: #0071e3;
     border-radius: 4px;
     transition: width 0.2s;
     width: 0;
@@ -3304,19 +3305,19 @@ body {
 }
 .knowledge-card-diff {
     font-size: 11px;
-    color: #ff9500;
+    color: #0071e3;
     letter-spacing: 1px;
 }
 .kd-diff {
     font-size: 12px;
-    color: #ff9500;
-    background: #fff4e6;
+    color: #0071e3;
+    background: #e6f1ff;
     padding: 2px 8px;
     border-radius: 10px;
     margin-left: 8px;
 }
 [data-theme="dark"] .kd-diff {
-    background: #3b2f0f;
+    background: #0a3d7a;
 }
 .kd-detail {
     font-size: 13px;
@@ -3507,7 +3508,7 @@ body {
     margin-bottom: 6px;
 }
 .ai-tag-btn {
-    background: linear-gradient(135deg, #8e44ce, #5856d6);
+    background: #0071e3;
     color: #fff;
     border: none;
     border-radius: 14px;

@@ -862,9 +862,9 @@ function renderDetail(m) {
         ` : ''}
 
         <button class="ai-gen-btn" onclick="openAIModal('${m.id}')">🤖 AI 举一反三</button>
-        <button class="ai-gen-btn" style="background:linear-gradient(135deg,#0071e3,#5856d6)" onclick="openAIDiagnosis('${m.id}')">🔍 AI 诊断</button>
-        <button class="ai-gen-btn" style="background:linear-gradient(135deg,#ff2d55,#d60a6a)" onclick="openAIChat('${m.id}')">💬 AI 对话</button>
-        <button class="ai-gen-btn" style="background:linear-gradient(135deg,#ff9500,#ff3b30)" onclick="openShareModal('${m.id}')">📤 分享</button>
+        <button class="ai-gen-btn" style="background:#0071e3" onclick="openAIDiagnosis('${m.id}')">🔍 AI 诊断</button>
+        <button class="ai-gen-btn" style="background:#0071e3" onclick="openAIChat('${m.id}')">💬 AI 对话</button>
+        <button class="ai-gen-btn" style="background:#0071e3" onclick="openShareModal('${m.id}')">📤 分享</button>
         <div class="detail-footer">
             ${m.status !== 'mastered' ? `
                 <button class="action-btn success" onclick="markMastered('${m.id}')">✓ 已掌握</button>
@@ -905,11 +905,8 @@ function generateShareCard(m) {
     holder.innerHTML = '';
     holder.appendChild(canvas);
 
-    // 背景渐变
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#0071e3');
-    bg.addColorStop(1, '#3a2d70');
-    ctx.fillStyle = bg;
+    // 背景
+    ctx.fillStyle = '#0071e3';
     ctx.fillRect(0, 0, W, H);
 
     // 顶部标题
@@ -919,7 +916,7 @@ function generateShareCard(m) {
     ctx.fillText('📚 代码错题集', 40, 56);
 
     // 语言徽章
-    ctx.fillStyle = '#5ac8fa';
+    ctx.fillStyle = '#42a1ff';
     ctx.beginPath();
     ctx.roundRect(40, 84, 130, 34, 8);
     ctx.fill();
@@ -942,7 +939,7 @@ function generateShareCard(m) {
         ctx.beginPath();
         ctx.roundRect(tagX, 210, w, 30, 15);
         ctx.fill();
-        ctx.fillStyle = '#e0c2f5';
+        ctx.fillStyle = '#cce2ff';
         ctx.font = '13px "PingFang SC","Microsoft YaHei",sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('#' + t, tagX + w / 2, 230);
@@ -1801,12 +1798,12 @@ function logActivity(ts) {
 const POINTS_KEY = 'code_points_v1';
 
 const LEVELS = [
-    { level: 1, name: '青铜学徒', min: 0,   icon: '🥉', color: '#b86500' },
+    { level: 1, name: '青铜学徒', min: 0,   icon: '🥉', color: '#8e8e93' },
     { level: 2, name: '白银练手', min: 50,  icon: '🥈', color: '#6e6e73' },
-    { level: 3, name: '黄金进阶', min: 150, icon: '🥇', color: '#ffb84d' },
-    { level: 4, name: '铂金达人', min: 300, icon: '💎', color: '#30b0c7' },
-    { level: 5, name: '钻石高手', min: 600, icon: '🔥', color: '#0071e3' },
-    { level: 6, name: '荣耀宗师', min: 1000,icon: '🏆', color: '#8e44ce' },
+    { level: 3, name: '黄金进阶', min: 150, icon: '🥇', color: '#48484a' },
+    { level: 4, name: '铂金达人', min: 300, icon: '💎', color: '#0071e3' },
+    { level: 5, name: '钻石高手', min: 600, icon: '🔥', color: '#0058b0' },
+    { level: 6, name: '荣耀宗师', min: 1000,icon: '🏆', color: '#0a3d7a' },
 ];
 
 let userPoints = 0;
@@ -1877,12 +1874,12 @@ function renderPoints() {
  * ======================================== */
 
 const STREAK_BADGES = [
-    { days: 3,   icon: '🔥', name: '初心者',   color: '#ff9500' },
-    { days: 7,   icon: '⚡', name: '一周坚持', color: '#ffb84d' },
-    { days: 14,  icon: '🌟', name: '半月达人', color: '#34c759' },
-    { days: 30,  icon: '💎', name: '月度王者', color: '#30b0c7' },
-    { days: 60,  icon: '👑', name: '持之以恒', color: '#8e44ce' },
-    { days: 100, icon: '🏆', name: '百日传说', color: '#ff2d55' },
+    { days: 3,   icon: '🔥', name: '初心者',   color: '#8e8e93' },
+    { days: 7,   icon: '⚡', name: '一周坚持', color: '#6e6e73' },
+    { days: 14,  icon: '🌟', name: '半月达人', color: '#0071e3' },
+    { days: 30,  icon: '💎', name: '月度王者', color: '#0058b0' },
+    { days: 60,  icon: '👑', name: '持之以恒', color: '#0a3d7a' },
+    { days: 100, icon: '🏆', name: '百日传说', color: '#00264d' },
 ];
 
 function calcStreak() {
@@ -4451,35 +4448,35 @@ function openShareModal(id) {
     $('shareOptions').innerHTML = `
         ${canNativeShare ? `
         <div class="share-option" onclick="shareNative()">
-            <div class="share-option-icon" style="background:#e8f8ee">📤</div>
+            <div class="share-option-icon" style="background:#e6f1ff">📤</div>
             <div class="share-option-text">
                 <div class="share-option-name">系统分享</div>
                 <div class="share-option-hint">通过手机系统分享（含图片卡片）</div>
             </div>
         </div>` : ''}
         <div class="share-option" onclick="shareDownloadCard()">
-            <div class="share-option-icon" style="background:#e6f4ff">🖼</div>
+            <div class="share-option-icon" style="background:#e6f1ff">🖼</div>
             <div class="share-option-text">
                 <div class="share-option-name">下载分享卡片</div>
                 <div class="share-option-hint">生成精美 PNG 图片，可发朋友圈 / 聊天群</div>
             </div>
         </div>
         <div class="share-option" onclick="shareCopyText()">
-            <div class="share-option-icon" style="background:#fff4e6">📋</div>
+            <div class="share-option-icon" style="background:#e6f1ff">📋</div>
             <div class="share-option-text">
                 <div class="share-option-name">复制题目文本</div>
                 <div class="share-option-hint">复制到剪贴板，粘贴到聊天软件</div>
             </div>
         </div>
         <div class="share-option" onclick="shareCopyLink()">
-            <div class="share-option-icon" style="background:#f7eefc">🔗</div>
+            <div class="share-option-icon" style="background:#e6f1ff">🔗</div>
             <div class="share-option-text">
                 <div class="share-option-name">复制应用链接</div>
                 <div class="share-option-hint">把错题本应用分享给同学</div>
             </div>
         </div>
         <div class="share-option" onclick="shareToWeibo()">
-            <div class="share-option-icon" style="background:#ffe3e0">🐦</div>
+            <div class="share-option-icon" style="background:#e6f1ff">🐦</div>
             <div class="share-option-text">
                 <div class="share-option-name">分享到微博</div>
                 <div class="share-option-hint">跳转微博网页发布</div>
@@ -4730,7 +4727,7 @@ function renderSyncBody(statusHtml = '') {
         </div>
         <div class="sync-status ${syncConfig.user ? 'ok' : ''}" id="syncStatus">${statusHtml || (syncConfig.user ? '✅ 已连接 GitHub 账号：' + escapeHtml(syncConfig.user) : '💡 填写 Token 后先点击「检测连接」')}</div>
         <button class="practice-quiz-btn practice-quiz-btn-primary" onclick="saveSyncInputs(); syncTest()">🔌 检测连接</button>
-        <button class="practice-quiz-btn practice-quiz-btn-primary" style="background:linear-gradient(135deg,#8e44ce,#5856d6)" onclick="saveSyncInputs(); syncPush()">☁️ 立即备份上传</button>
+        <button class="practice-quiz-btn practice-quiz-btn-primary" style="background:#0071e3" onclick="saveSyncInputs(); syncPush()">☁️ 立即备份上传</button>
         <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="saveSyncInputs(); syncPull(false)">📥 云端下载（合并到本地）</button>
         <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="saveSyncInputs(); syncPull(true)">♻️ 云端覆盖本地</button>
         <div style="font-size:12px;color:var(--text-secondary)">${lastText}</div>
@@ -5107,10 +5104,7 @@ function downloadWeeklyImage() {
     const ctx = canvas.getContext('2d');
 
     // 背景
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#0071e3');
-    bg.addColorStop(1, '#3a2d70');
-    ctx.fillStyle = bg;
+    ctx.fillStyle = '#0071e3';
     ctx.fillRect(0, 0, W, H);
 
     // 顶部

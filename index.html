@@ -171,7 +171,7 @@
                         <span class="upload-icon">📷</span>
                         <span>拍照/选择图片</span>
                     </button>
-                    <button type="button" class="upload-btn" id="ocrEntryBtn" style="background:linear-gradient(135deg,#0071e3,#5856d6)">
+                    <button type="button" class="upload-btn" id="ocrEntryBtn" style="background:#0071e3">
                         <span class="upload-icon">🏷</span>
                         <span>OCR 拍照识别</span>
                     </button>
@@ -448,9 +448,9 @@
             <p class="stats-card-sub">导出错题 PDF 打印复习，或备份/恢复/云端同步数据</p>
             <div class="data-mgmt-btns">
                 <button class="ai-gen-btn" style="margin-right:8px" onclick="exportDataPDF()">🖨 导出 PDF</button>
-                <button class="ai-gen-btn" style="background:linear-gradient(135deg,#0071e3,#5856d6)" onclick="exportBackup()">💾 备份 JSON</button>
-                <button class="ai-gen-btn" style="background:linear-gradient(135deg,#34c759,#30b0c7)" onclick="document.getElementById('backupFile').click()">📥 恢复备份</button>
-                <button class="ai-gen-btn" style="background:linear-gradient(135deg,#8e44ce,#5856d6)" onclick="openSyncModal()">☁️ 云端同步</button>
+                <button class="ai-gen-btn" style="background:#0071e3" onclick="exportBackup()">💾 备份 JSON</button>
+                <button class="ai-gen-btn" style="background:#0071e3" onclick="document.getElementById('backupFile').click()">📥 恢复备份</button>
+                <button class="ai-gen-btn" style="background:#0071e3" onclick="openSyncModal()">☁️ 云端同步</button>
             </div>
             <input type="file" id="backupFile" accept=".json,application/json" style="display:none" onchange="importBackup(this)">
         </div>
