@@ -188,7 +188,7 @@ function renderMarkdown(text) {
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         // 仅 HTTPS 或 localhost 生效
-        navigator.serviceWorker.register('./sw.js').catch((err) => {
+        navigator.serviceWorker.register('./sw.js?v=5').catch((err) => {
             console.warn('Service Worker 注册失败:', err);
         });
     }
