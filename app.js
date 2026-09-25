@@ -1641,6 +1641,9 @@ function init() {
     if (mistakes.length === 0) {
         addSampleData();
     }
+
+    // 启动头部 Shape Waves 动画背景
+    initShapeWaves();
 }
 
 // 示例数据
@@ -3805,6 +3808,132 @@ function importBackup(input) {
         }
     };
     reader.readAsText(file);
+}
+
+/* ========================================
+ * Shape Waves 头部动画背景
+ *   灵感来自 reactbits.dev/backgrounds/shape-waves
+ *   纯 Canvas 2D 实现，不依赖 WebGPU
+ * ======================================== */
+function initShapeWaves() {
+    const canvas = document.getElementById('headerCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const header = canvas.parentElement;
+
+    // 根据主题获取配色
+    function getColors() {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (isDark) {
+            return {
+                bg: '#0a84ff',
+                shapes: ['#64b5ff', '#a8d4ff', '#ffffff'],
+            };
+        }
+        return {
+            bg: '#0071e3',
+            shapes: ['#42a1ff', '#8ec5ff', '#ffffff'],
+        };
+    }
+
+    let cols = 0, rows = 0;
+    const cellSize = 14;       // 网格单元大小
+    let shapes = [];          // 每个单元的形状类型 0=三角 1=圆 2=方
+    let time = 0;
+    let rafId = null;
+    let running = true;
+
+    function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const w = header.offsetWidth;
+        const h = header.offsetHeight;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        cols = Math.ceil(w / cellSize) + 1;
+        rows = Math.ceil(h / cellSize) + 1;
+        shapes = [];
+        for (let r = 0; r < rows; r++) {
+            const row = [];
+            for (let c = 0; c < cols; c++) {
+                row.push((c + r) % 3); // 交替分配形状
+            }
+            shapes.push(row);
+        }
+    }
+
+    function drawShape(x, y, size, type, color, alpha) {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = color;
+        ctx.translate(x, y);
+        if (type === 0) {
+            // 三角形
+            ctx.beginPath();
+            ctx.moveTo(0, -size / 2);
+            ctx.lineTo(size / 2, size / 2);
+            ctx.lineTo(-size / 2, size / 2);
+            ctx.closePath();
+            ctx.fill();
+        } else if (type === 1) {
+            // 圆形
+            ctx.beginPath();
+            ctx.arc(0, 0, size / 2, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            // 方形
+            ctx.fillRect(-size / 2, -size / 2, size, size);
+        }
+        ctx.restore();
+    }
+
+    function frame() {
+        if (!running) return;
+        const { shapes: shapeColors } = getColors();
+        const w = header.offsetWidth;
+        const h = header.offsetHeight;
+        ctx.clearRect(0, 0, w, h);
+
+        time += 0.012;
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const x = c * cellSize + cellSize / 2;
+                const y = r * cellSize + cellSize / 2;
+                // 波浪：基于位置和时间的正弦叠加
+                const wave = Math.sin(c * 0.25 + time) * 0.5 + Math.sin(r * 0.3 - time * 1.3) * 0.5;
+                const band = (wave + 1) / 2; // 0~1
+                const size = cellSize * (0.2 + band * 0.55);
+                const colorIdx = Math.min(2, Math.floor(band * 3));
+                const alpha = 0.15 + band * 0.5;
+                drawShape(x, y, size, shapes[r][c], shapeColors[colorIdx], alpha);
+            }
+        }
+        rafId = requestAnimationFrame(frame);
+    }
+
+    resize();
+    frame();
+
+    // 响应窗口尺寸与主题变化
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(resize, 150);
+    });
+
+    // 页面隐藏时暂停，节省性能
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            running = false;
+            cancelAnimationFrame(rafId);
+        } else {
+            running = true;
+            frame();
+        }
+    });
 }
 
 // 启动应用

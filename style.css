@@ -66,6 +66,22 @@ body {
     align-items: center;
     justify-content: space-between;
     box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.header-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.4;
+}
+
+.app-header > *:not(.header-canvas) {
+    position: relative;
+    z-index: 1;
 }
 
 .header-left, .header-right {
@@ -200,6 +216,44 @@ h3 > .ico {
 [data-theme="dark"] .ico[data-ico="check-circle"] { background: rgba(52, 199, 89, 0.18); }
 [data-theme="dark"] .ico[data-ico="x-circle"] { background: rgba(255, 59, 48, 0.18); }
 [data-theme="dark"] .ico[data-ico="alert-triangle"] { background: rgba(255, 149, 0, 0.18); }
+
+/* === 图标微动画：呼应 reactbits 交互风格 === */
+@keyframes ico-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+}
+@keyframes ico-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-1.5px); }
+}
+@keyframes ico-spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* 火焰图标：呼吸脉动 */
+.ico[data-ico="flame"] { animation: ico-pulse 2.4s ease-in-out infinite; }
+/* 成就图标：轻微浮动 */
+.ico[data-ico="trophy"],
+.ico[data-ico="crown"],
+.ico[data-ico="medal"],
+.ico[data-ico="gem"] { animation: ico-float 3s ease-in-out infinite; }
+/* 挑战目标图标：浮动 */
+.challenge-card-title .ico[data-ico="target"] { animation: ico-float 2.8s ease-in-out infinite; }
+/* 刷新图标：悬停旋转 */
+.ico[data-ico="refresh-cw"]:hover { animation: ico-spin-slow 0.8s linear; }
+
+/* 所有图标交互反馈 */
+button:hover .ico,
+a:hover .ico,
+[onclick]:hover .ico {
+    transform: scale(1.1);
+}
+button .ico,
+a .ico,
+[onclick] .ico {
+    transition: transform 0.2s ease;
+}
 
 .icon-btn:hover {
     background: rgba(255, 255, 255, 0.3);
