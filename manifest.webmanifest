@@ -1,0 +1,26 @@
+{
+    "name": "代码错题集 - 编程学习好帮手",
+    "short_name": "错题集",
+    "description": "记录编程错题、AI 诊断、举一反三、复习追踪的编程学习工具",
+    "start_url": "./index.html",
+    "scope": "./",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#f5f5f7",
+    "theme_color": "#0071e3",
+    "lang": "zh-CN",
+    "icons": [
+        {
+            "src": "assets/icon.jpg",
+            "sizes": "192x192",
+            "type": "image/jpeg",
+            "purpose": "any"
+        },
+        {
+            "src": "assets/icon.jpg",
+            "sizes": "512x512",
+            "type": "image/jpeg",
+            "purpose": "any maskable"
+        }
+    ]
+}
