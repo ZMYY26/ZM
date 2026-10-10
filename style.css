@@ -16,6 +16,13 @@
     --success: #34c759;
     --warning: #ff9500;
 
+    /* ---- 语义状态文字（浅色底上的深色语义文字）---- */
+    --success-text: #1a7c37;
+    --danger-text: #c0392b;
+    --success-tint: rgba(52, 199, 89, 0.10);
+    --danger-tint: rgba(255, 59, 48, 0.10);
+    --warning-tint: rgba(255, 149, 0, 0.12);
+
     /* ---- 中性色 · 冷灰底让玻璃更有层次 ---- */
     --bg: #f4f6f8;
     --card: #ffffff;
@@ -50,6 +57,11 @@
     --text: #fbfbfd;
     --text-primary: #fbfbfd;
     --text-secondary: #8e8e93;
+    --success-text: #66d47f;
+    --danger-text: #ff6b5e;
+    --success-tint: rgba(52, 199, 89, 0.16);
+    --danger-tint: rgba(255, 59, 48, 0.16);
+    --warning-tint: rgba(255, 149, 0, 0.16);
     --border: #38383a;
     --surface: #2c2c2e;
     --surface-2: #3a3a3c;
@@ -327,6 +339,77 @@ a .ico,
     transform: scale(0.95);
 }
 
+/* ========== 全局微交互（呼应 uiverse / reactbits） ========== */
+/* 键盘焦点可见性（无障碍） */
+:focus-visible {
+    outline: 2px solid var(--primary-light);
+    outline-offset: 2px;
+    border-radius: 6px;
+}
+
+/* 主行动按钮：悬停发光 + 微抬升 */
+.submit-btn,
+.practice-quiz-btn-primary,
+.action-btn.primary,
+.fab-btn,
+.ai-tag-btn {
+    transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease), background 0.2s;
+}
+.submit-btn:hover,
+.practice-quiz-btn-primary:hover,
+.action-btn.primary:hover,
+.fab-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px var(--primary-glow);
+}
+.ai-tag-btn:hover {
+    box-shadow: 0 4px 14px var(--primary-glow);
+}
+.submit-btn:active,
+.practice-quiz-btn-primary:active,
+.action-btn.primary:active,
+.fab-btn:active,
+.ai-tag-btn:active {
+    transform: scale(0.97);
+}
+
+/* 底部导航：按压回弹 + 图标弹跳 */
+.nav-item {
+    transition: color 0.2s, transform 0.18s var(--ease);
+}
+.nav-item:active {
+    transform: scale(0.9);
+}
+.nav-item.active .nav-icon {
+    transform: translateY(-1px);
+}
+.nav-icon {
+    transition: transform 0.2s var(--ease);
+}
+
+/* 胶囊筛选：悬停高亮 */
+.knowledge-cat-tab:hover,
+.practice-cat-btn:hover,
+.challenge-opt-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* 首页瓦片：悬停轻微抬升 */
+.stats-bar,
+.points-card,
+.streak-card,
+.challenge-card {
+    transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease);
+}
+.stats-bar:hover,
+.points-card:hover,
+.streak-card:hover,
+.challenge-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
 /* ========== 页面容器 ========== */
 .app-main {
     padding: 16px;
@@ -344,6 +427,100 @@ a .ico,
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+/* ========== 首页 Bento 问候头部 ========== */
+.hero-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    background: linear-gradient(135deg, var(--card) 0%, var(--surface) 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+}
+/* 头部玻璃高光 */
+.hero-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 85% 15%, var(--primary-glow), transparent 45%);
+    pointer-events: none;
+}
+.hero-card > * {
+    position: relative;
+    z-index: 1;
+}
+.hero-greeting {
+    flex: 1;
+    min-width: 0;
+}
+.hero-hi {
+    font-size: 21px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+}
+.hero-date {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 3px;
+}
+.hero-sub {
+    font-size: 13px;
+    color: var(--primary);
+    font-weight: 600;
+    margin-top: 8px;
+}
+.hero-ring {
+    position: relative;
+    width: 76px;
+    height: 76px;
+    flex: 0 0 auto;
+}
+.progress-ring {
+    width: 76px;
+    height: 76px;
+    transform: rotate(-90deg);
+}
+.progress-ring-bg,
+.progress-ring-fill {
+    fill: none;
+    stroke-width: 7;
+    stroke-linecap: round;
+}
+.progress-ring-bg {
+    stroke: var(--surface-2);
+}
+.progress-ring-fill {
+    stroke: var(--primary);
+    stroke-dasharray: 213.6;
+    stroke-dashoffset: 213.6;
+    transition: stroke-dashoffset 0.9s var(--ease);
+    filter: drop-shadow(0 0 3px var(--primary-glow));
+}
+.hero-ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.hero-ring-num {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--primary);
+    line-height: 1;
+}
+.hero-ring-label {
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin-top: 2px;
 }
 
 /* ========== 统计条 ========== */
@@ -461,7 +638,7 @@ a .ico,
     font-size: 11px;
     padding: 3px 8px;
     border-radius: 4px;
-    background: #f0f4f8;
+    background: var(--surface);
     color: var(--primary);
     font-weight: 500;
 }
@@ -474,7 +651,7 @@ a .ico,
 }
 
 .status-pending {
-    background: #faf2f1;
+    background: var(--danger-tint);
     color: var(--danger);
 }
 
@@ -484,7 +661,7 @@ a .ico,
 }
 
 .status-mastered {
-    background: #f0f7f2;
+    background: var(--success-tint);
     color: var(--success);
 }
 
@@ -498,8 +675,8 @@ a .ico,
 .card-preview {
     font-size: 13px;
     color: var(--text-secondary);
-    background: #f0f4f8;
-    color: #1d1d1f;
+    background: var(--surface);
+    color: var(--text);
     padding: 8px 10px;
     border-radius: 6px;
     font-family: 'Menlo', 'Consolas', monospace;
@@ -534,7 +711,7 @@ a .ico,
 }
 
 .card-source {
-    background: #f0f7f2;
+    background: var(--success-tint);
     color: #4a7a56;
     padding: 2px 8px;
     border-radius: 4px;
@@ -590,7 +767,7 @@ a .ico,
     gap: 6px;
     padding: 8px 14px;
     border-radius: 20px;
-    background: #f0f4f8;
+    background: var(--surface);
     color: var(--primary);
     font-size: 13px;
     font-weight: 500;
@@ -707,8 +884,8 @@ a .ico,
 }
 
 .review-date-badge.today {
-    background: #faf2f1;
-    color: #a04545;
+    background: var(--danger-tint);
+    color: var(--danger-text);
 }
 
 .review-date-badge.tomorrow {
@@ -797,7 +974,7 @@ a .ico,
     border-radius: 8px;
     font-size: 14px;
     font-family: inherit;
-    background: #f5f5f7;
+    background: var(--bg);
     transition: border-color 0.2s;
     outline: none;
 }
@@ -815,14 +992,14 @@ a .ico,
 .code-input {
     font-family: 'Menlo', 'Consolas', 'Courier New', monospace;
     font-size: 13px;
-    background: #f0f4f8;
-    color: #1d1d1f;
+    background: var(--surface);
+    color: var(--text);
     border-color: #d2d2d7;
 }
 
 .code-input:focus {
     border-color: var(--primary-light);
-    background: #f0f4f8;
+    background: var(--surface);
 }
 
 /* 图片上传 */
@@ -840,7 +1017,7 @@ a .ico,
     padding: 12px;
     border: 2px dashed var(--border);
     border-radius: 8px;
-    background: #f5f5f7;
+    background: var(--bg);
     color: var(--text-secondary);
     font-size: 14px;
     cursor: pointer;
@@ -850,6 +1027,17 @@ a .ico,
 .upload-btn:active {
     border-color: var(--primary);
     color: var(--primary);
+}
+
+.upload-btn--primary {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+.upload-btn--primary:active {
+    color: #fff;
+    border-color: var(--primary-dark);
+    background: var(--primary-dark);
 }
 
 .upload-icon {
@@ -929,7 +1117,7 @@ a .ico,
     font-size: 12px;
     padding: 4px 10px;
     border-radius: 12px;
-    background: #f0f4f8;
+    background: var(--surface);
     color: var(--primary);
 }
 
@@ -987,12 +1175,12 @@ a .ico,
 }
 
 .code-block-header.wrong {
-    background: #faf2f1;
+    background: var(--danger-tint);
     color: var(--danger);
 }
 
 .code-block-header.right {
-    background: #f0f7f2;
+    background: var(--success-tint);
     color: var(--success);
 }
 
@@ -1008,7 +1196,7 @@ a .ico,
     color: var(--text);
     line-height: 1.6;
     padding: 12px;
-    background: #f0f4f8;
+    background: var(--surface);
     border-radius: 8px;
     border-left: 3px solid var(--primary);
     white-space: pre-wrap;
@@ -1052,9 +1240,9 @@ a .ico,
 }
 
 .action-btn.danger {
-    background: #faf2f1;
+    background: var(--danger-tint);
     color: var(--danger);
-    border: 1px solid #f0d8d6;
+    border: 1px solid rgba(255, 59, 48, 0.28);
 }
 
 /* ========== 搜索弹窗 ========== */
@@ -1268,7 +1456,7 @@ a .ico,
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #e5e5ea;
+    background: var(--surface-2);
     border-radius: 2px;
 }
 
@@ -1355,7 +1543,7 @@ a .ico,
     font-size: 11px;
     padding: 3px 8px;
     border-radius: 4px;
-    background: #f0f4f8;
+    background: var(--surface);
     color: var(--primary);
     font-weight: 500;
     margin-bottom: 8px;
@@ -1426,7 +1614,7 @@ a .ico,
     font-size: 12px;
     padding: 4px 10px;
     border-radius: 12px;
-    background: #f0f4f8;
+    background: var(--surface);
     color: var(--primary);
     font-weight: 500;
 }
@@ -1480,7 +1668,7 @@ a .ico,
     color: var(--text);
     line-height: 1.6;
     padding: 12px;
-    background: #f0f7f2;
+    background: var(--success-tint);
     border-radius: 8px;
     border-left: 3px solid var(--success);
 }
@@ -1498,7 +1686,7 @@ a .ico,
     font-size: 13px;
     color: var(--primary);
     padding: 10px 14px;
-    background: #f0f4f8;
+    background: var(--surface);
     border-radius: 8px;
     font-family: 'Menlo', monospace;
     border-left: 3px solid var(--primary);
@@ -1669,7 +1857,7 @@ a .ico,
     font-size: 11px;
     padding: 3px 8px;
     border-radius: 4px;
-    background: #f0f4f8;
+    background: var(--surface);
     color: var(--primary);
     font-weight: 500;
 }
@@ -1711,13 +1899,13 @@ a .ico,
 }
 
 .practice-card-status.correct {
-    background: #f0f7f2;
+    background: var(--success-tint);
     color: #4a7a56;
 }
 
 .practice-card-status.wrong {
-    background: #faf2f1;
-    color: #a04545;
+    background: var(--danger-tint);
+    color: var(--danger-text);
 }
 
 .practice-card-related {
@@ -1790,25 +1978,25 @@ a .ico,
 
 .practice-quiz-option.selected {
     border-color: var(--primary);
-    background: #f0f4f8;
+    background: var(--surface);
     color: var(--primary-dark);
     font-weight: 500;
 }
 
 .practice-quiz-option.correct-answer {
     border-color: var(--success);
-    background: #f0f7f2;
+    background: var(--success-tint);
     color: #4a7a56;
 }
 
 .practice-quiz-option.wrong-answer {
     border-color: var(--danger);
-    background: #faf2f1;
-    color: #a04545;
+    background: var(--danger-tint);
+    color: var(--danger-text);
 }
 
 .practice-quiz-explanation {
-    background: #f0f4f8;
+    background: var(--surface);
     border-left: 4px solid var(--primary);
     padding: 12px 14px;
     border-radius: 8px;
@@ -1855,7 +2043,7 @@ a .ico,
 
 /* 举一反三推荐区 */
 .practice-related-box {
-    background: #f0f4f8;
+    background: var(--surface);
     border-radius: 10px;
     padding: 12px 14px;
     margin-bottom: 14px;
@@ -2060,7 +2248,7 @@ a .ico,
 
 .diag-summary {
     padding: 12px 14px;
-    background: #f0f4f8;
+    background: var(--surface);
     border-left: 4px solid var(--primary);
     border-radius: 8px;
     font-size: 14px;
@@ -2082,7 +2270,7 @@ a .ico,
 }
 
 .diag-cause {
-    background: #f0f4f8;
+    background: var(--surface);
     border: 1px solid #e0e8f0;
     border-left: 4px solid var(--primary);
     border-radius: 8px;
@@ -2098,7 +2286,7 @@ a .ico,
     margin: 0;
     border-radius: 8px;
     overflow: hidden;
-    background: #f0f4f8;
+    background: var(--surface);
 }
 
 .diag-code code {
@@ -2107,13 +2295,13 @@ a .ico,
     overflow-x: auto;
     font-size: 12.5px;
     line-height: 1.6;
-    color: #1d1d1f;
+    color: var(--text);
 }
 
 .diag-explain {
-    background: #f0f7f2;
+    background: var(--success-tint);
     border: 1px solid #b8eccd;
-    border-left: 4px solid #6bb77a;
+    border-left: 4px solid var(--success);
     border-radius: 8px;
     padding: 10px 12px;
     font-size: 13px;
@@ -2123,7 +2311,7 @@ a .ico,
 }
 
 .diag-tips {
-    background: #f0f4f8;
+    background: var(--surface);
     border: 1px solid #e0e8f0;
     border-radius: 8px;
     padding: 10px 12px;
@@ -2157,7 +2345,7 @@ a .ico,
     justify-content: space-between;
     align-items: center;
     padding: 10px 14px;
-    background: #f0f4f8;
+    background: var(--surface);
     border-radius: 8px;
     font-size: 13px;
     color: var(--primary-dark);
@@ -2235,7 +2423,7 @@ a .ico,
     color: var(--text-secondary);
     line-height: 1.6;
     padding: 10px 12px;
-    background: #f0f7f2;
+    background: var(--success-tint);
     border-radius: 8px;
     border-left: 3px solid var(--success);
     margin-bottom: 14px;
@@ -2253,8 +2441,8 @@ a .ico,
 
 /* 练习页"AI变式"分类按钮 */
 .practice-cat-btn.ai-cat-btn {
-    background: #f0f4f8;
-    color: #1d1d1f;
+    background: var(--surface);
+    color: var(--text);
     border-color: #d8e0e8;
 }
 
@@ -2277,7 +2465,7 @@ a .ico,
 }
 
 .ai-type-badge.code {
-    background: #f0f4f8;
+    background: var(--surface);
     color: #86868b;
     border: 1px solid #e0e8f0;
 }
@@ -2290,7 +2478,7 @@ a .ico,
 .ai-card-question .ai-q-code {
     margin: 8px 0;
     padding: 12px;
-    background: #f0f4f8;
+    background: var(--surface);
     border-radius: 6px;
     overflow-x: auto;
     font-family: 'Menlo', 'Consolas', monospace;
@@ -2301,7 +2489,7 @@ a .ico,
 .ai-card-question .ai-q-code code {
     background: transparent;
     padding: 0;
-    color: #1d1d1f;
+    color: var(--text);
 }
 
 /* code 题选项：等宽字体 + 保留空白 */
@@ -2334,7 +2522,7 @@ a .ico,
 .ai-mnemonic {
     margin-top: 10px;
     padding: 10px 12px;
-    background: #f0f4f8;
+    background: var(--surface);
     border-left: 3px solid var(--primary);
     border-radius: 6px;
     font-size: 13px;
@@ -2349,7 +2537,7 @@ a .ico,
 .run-btn {
     margin-left: auto;
     padding: 4px 12px;
-    background: #6bb77a;
+    background: var(--success);
     color: white;
     border: none;
     border-radius: 14px;
@@ -2395,7 +2583,7 @@ a .ico,
     margin-top: 8px;
     border-radius: 6px;
     background: #eef2f7;
-    color: #1d1d1f;
+    color: var(--text);
     font-family: 'Menlo', 'Consolas', monospace;
     font-size: 12.5px;
     line-height: 1.6;
@@ -2405,19 +2593,19 @@ a .ico,
 }
 
 .code-output.loading {
-    color: #6e6e73;
+    color: var(--text-secondary);
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
 .code-output.error {
-    border-color: #f0d8d6;
-    background: #faf2f1;
+    border-color: rgba(255, 59, 48, 0.28);
+    background: var(--danger-tint);
 }
 
 .run-out-title {
-    color: #6e6e73;
+    color: var(--text-secondary);
     font-size: 11px;
     margin-bottom: 6px;
     font-weight: 600;
@@ -2425,7 +2613,7 @@ a .ico,
 }
 
 .code-output.error .run-out-title {
-    color: #a04545;
+    color: var(--danger-text);
 }
 
 .run-stdout,
@@ -2441,7 +2629,7 @@ a .ico,
 }
 
 .run-stderr {
-    color: #a04545;
+    color: var(--danger-text);
     margin-top: 6px;
 }
 
@@ -2456,7 +2644,7 @@ a .ico,
     width: 14px;
     height: 14px;
     border: 2px solid #d2d2d7;
-    border-top-color: #6bb77a;
+    border-top-color: var(--success);
     border-radius: 50%;
     animation: run-spin 0.8s linear infinite;
 }
@@ -2466,7 +2654,7 @@ a .ico,
 }
 
 .run-line.run-err {
-    color: #a04545;
+    color: var(--danger-text);
 }
 
 /* ========== 统计页 ========== */
@@ -2544,11 +2732,11 @@ a .ico,
 }
 .radar-ring {
     fill: none;
-    stroke: #e5e5ea;
+    stroke: var(--surface-2);
     stroke-width: 1;
 }
 .radar-axis {
-    stroke: #e5e5ea;
+    stroke: var(--surface-2);
     stroke-width: 1;
     opacity: 0.7;
 }
@@ -2770,65 +2958,80 @@ a .ico,
 .points-main {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 16px;
 }
 
-.points-num {
-    font-size: 30px;
-    font-weight: 800;
-    color: var(--primary);
-    line-height: 1;
+.points-ring {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    flex: 0 0 auto;
 }
-
-.points-unit {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    margin-left: 2px;
+.points-ring svg {
+    width: 72px;
+    height: 72px;
+    transform: rotate(-90deg);
 }
-
-.points-identity {
-    flex: 1;
+.points-ring-bg,
+.points-ring-fill {
+    fill: none;
+    stroke-width: 6;
+    stroke-linecap: round;
+}
+.points-ring-bg { stroke: var(--surface-2); }
+.points-ring-fill {
+    stroke: var(--primary);
+    transition: stroke-dashoffset 0.9s var(--ease);
+    filter: drop-shadow(0 0 3px var(--primary-glow));
+}
+.points-ring-center {
+    position: absolute;
+    inset: 0;
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
+}
+.points-ring-lv {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--primary);
 }
 
+.points-info {
+    flex: 1;
+    min-width: 0;
+}
+.points-info-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
 .points-level-icon {
-    font-size: 28px;
+    font-size: 20px;
     line-height: 1;
 }
-
 .points-level-name {
     font-size: 14px;
     font-weight: 700;
     color: var(--text);
 }
-
+.points-num {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--primary);
+    line-height: 1.2;
+    margin-top: 4px;
+}
+.points-unit {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-left: 2px;
+}
 .points-tip {
     font-size: 11px;
     color: var(--text-secondary);
     margin-top: 2px;
-}
-
-.points-level-line {
-    font-size: 11px;
-    color: var(--text-secondary);
-    margin-top: 10px;
-    margin-bottom: 4px;
-}
-
-.points-track {
-    height: 6px;
-    background: #e5e5ea;
-    border-radius: 3px;
-    overflow: hidden;
-}
-
-.points-fill {
-    height: 100%;
-    border-radius: 3px;
-    transition: width 0.4s ease;
 }
 
 /* ========== 错题趋势折线图 ========== */
@@ -2877,7 +3080,7 @@ a .ico,
 }
 
 .trend-grid {
-    stroke: #e5e5ea;
+    stroke: var(--surface-2);
     stroke-width: 1;
 }
 
@@ -2949,7 +3152,7 @@ a .ico,
 }
 
 .cal-cell.has {
-    background: #f0f4f8;
+    background: var(--surface);
     font-weight: 600;
     color: var(--primary);
 }
@@ -3072,7 +3275,7 @@ a .ico,
 
 .markdown-body code {
     background: #e8e8ed;
-    color: #1d1d1f;
+    color: var(--text);
     padding: 1px 5px;
     border-radius: 4px;
     font-size: 12px;
@@ -3080,8 +3283,8 @@ a .ico,
 }
 
 .markdown-body pre {
-    background: #f0f4f8;
-    color: #1d1d1f;
+    background: var(--surface);
+    color: var(--text);
     padding: 10px 12px;
     border-radius: 8px;
     overflow-x: auto;
@@ -3126,10 +3329,6 @@ a .ico,
 [data-theme="dark"] .chat-msg-assistant .chat-bubble,
 [data-theme="dark"] .review-item {
     background: var(--surface);
-}
-[data-theme="dark"] .icon-btn[style*="background:#f0f4f8"] {
-    background: #1c1c1e !important;
-    color: #d8e0e8 !important;
 }
 [data-theme="dark"] .chat-textarea {
     background: var(--card);
@@ -3302,8 +3501,8 @@ a .ico,
     white-space: pre-wrap;
 }
 .challenge-q-code {
-    background: #f0f4f8;
-    color: #1d1d1f;
+    background: var(--surface);
+    color: var(--text);
     border-radius: 8px;
     padding: 10px 12px;
     font-family: Menlo, Consolas, monospace;
@@ -3329,8 +3528,8 @@ a .ico,
     transition: all 0.15s;
 }
 .challenge-option:hover { border-color: var(--primary-light); }
-.challenge-option.correct { background: #f0f7f2; border-color: #6bb77a; color: #1a5c2e; }
-.challenge-option.wrong { background: #faf2f1; border-color: #c85a54; color: #a1000c; }
+.challenge-option.correct { background: var(--success-tint); border-color: var(--success); color: var(--success-text); }
+.challenge-option.wrong { background: var(--danger-tint); border-color: var(--danger); color: var(--danger-text); }
 [data-theme="dark"] .challenge-option.correct { background: #2a4a34; color: #b8eccd; }
 [data-theme="dark"] .challenge-option.wrong { background: #5a1d1d; color: #f0d8d6; }
 .challenge-result-score {
@@ -3403,7 +3602,7 @@ a .ico,
     text-align: center;
     transition: transform 0.15s;
 }
-.achievement-item.unlocked { background: #f0f4f8; border-color: var(--primary); }
+.achievement-item.unlocked { background: var(--surface); border-color: var(--primary); }
 [data-theme="dark"] .achievement-item.unlocked { background: #1c1c1e; border-color: #86868b; }
 .achievement-item.locked { opacity: 0.45; }
 .achievement-icon { font-size: 26px; }
@@ -3551,8 +3750,8 @@ a .ico,
     color: var(--text);
     line-height: 1.6;
 }
-.sync-status.ok { background: #f0f7f2; color: #1a5c2e; }
-.sync-status.err { background: #faf2f1; color: #a1000c; }
+.sync-status.ok { background: var(--success-tint); color: var(--success-text); }
+.sync-status.err { background: var(--danger-tint); color: var(--danger-text); }
 [data-theme="dark"] .sync-status.ok { background: #2a4a34; color: #b8eccd; }
 [data-theme="dark"] .sync-status.err { background: #5a1d1d; color: #f0d8d6; }
 
@@ -3582,13 +3781,13 @@ a .ico,
 }
 .knowledge-card-diff {
     font-size: 11px;
-    color: #1d1d1f;
+    color: var(--text);
     letter-spacing: 1px;
 }
 .kd-diff {
     font-size: 12px;
-    color: #1d1d1f;
-    background: #f0f4f8;
+    color: var(--text);
+    background: var(--surface);
     padding: 2px 8px;
     border-radius: 10px;
     margin-left: 8px;
@@ -3701,7 +3900,7 @@ a .ico,
     font-weight: 600;
     white-space: nowrap;
 }
-.risk-high { background: #faf2f1; color: #a04545; }
+.risk-high { background: var(--danger-tint); color: var(--danger-text); }
 .risk-mid { background: #faf6ef; color: #a07035; }
 .risk-low { background: #e0f2fe; color: #006199; }
 [data-theme="dark"] .risk-high { background: #5a1d1d; color: #f0d8d6; }
@@ -3802,4 +4001,35 @@ a .ico,
     color: var(--text-secondary);
     margin-top: 4px;
     line-height: 1.5;
+}
+
+/* ========== 庆祝撒花动画 ========== */
+.confetti-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2000;
+    overflow: hidden;
+}
+.confetti-layer i {
+    position: absolute;
+    top: -12px;
+    display: block;
+    animation-name: confetti-fall;
+    animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    animation-fill-mode: forwards;
+    will-change: transform, opacity;
+}
+@keyframes confetti-fall {
+    0% {
+        transform: translate3d(0, -12px, 0) rotate(0deg);
+        opacity: 1;
+    }
+    70% {
+        opacity: 0.95;
+    }
+    100% {
+        transform: translate3d(var(--drift, 20px), 106vh, 0) rotate(720deg);
+        opacity: 0.2;
+    }
 }

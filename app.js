@@ -91,6 +91,38 @@ function showToast(msg, duration = 1500) {
     setTimeout(() => toast.classList.remove('show'), duration);
 }
 
+// 庆祝撒花动画：挑战满分 / 练习全对 / 成就解锁时触发
+let confettiLayer = null;
+function celebrate(intensity = 70) {
+    if (confettiLayer) confettiLayer.remove();
+    const layer = document.createElement('div');
+    layer.className = 'confetti-layer';
+    layer.setAttribute('aria-hidden', 'true');
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const palette = isDark
+        ? ['#0a84ff', '#64b5ff', '#a8d4ff', '#ffffff', '#66d47f']
+        : ['#0071e3', '#42a1ff', '#8ec5ff', '#ffffff', '#34c759'];
+    for (let i = 0; i < intensity; i++) {
+        const p = document.createElement('i');
+        const size = 5 + Math.random() * 7;
+        p.style.width = size + 'px';
+        p.style.height = size + 'px';
+        p.style.left = (Math.random() * 100) + 'vw';
+        p.style.background = palette[Math.floor(Math.random() * palette.length)];
+        p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+        p.style.setProperty('--drift', ((Math.random() - 0.5) * 160) + 'px');
+        p.style.animationDuration = (2.2 + Math.random() * 1.8) + 's';
+        p.style.animationDelay = (Math.random() * 0.8) + 's';
+        layer.appendChild(p);
+    }
+    document.body.appendChild(layer);
+    confettiLayer = layer;
+    setTimeout(() => {
+        layer.remove();
+        if (confettiLayer === layer) confettiLayer = null;
+    }, 4800);
+}
+
 function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
 }
@@ -297,7 +329,7 @@ function updateHeader(pageId) {
 
 function refreshCurrentPage() {
     switch (currentPage) {
-        case 'pageHome': renderMistakeList(); renderStreak(); renderPoints(); renderChallengeCard(); break;
+        case 'pageHome': renderHero(); renderMistakeList(); renderStreak(); renderPoints(); renderChallengeCard(); break;
         case 'pageCategory': renderCategory(); break;
         case 'pageReview': renderReview(); break;
         case 'pageKnowledge': renderKnowledge(); break;
@@ -1640,6 +1672,9 @@ function init() {
     // 检查是否有示例数据（首次使用时添加一些）
     if (mistakes.length === 0) {
         addSampleData();
+        renderHero();
+        renderMistakeList();
+        updateTagFilter();
     }
 
     // 启动头部 Shape Waves 动画背景
@@ -1846,30 +1881,71 @@ function renderPoints() {
     if (!el) return;
     const { cur, next } = getLevel(userPoints);
 
-    let progress = '';
-    if (next) {
-        const pct = Math.round((userPoints - cur.min) / (next.min - cur.min) * 100);
-        progress = `
-            <div class="points-level-line">距「${next.icon} ${next.name}」还需 ${next.min - userPoints} 分</div>
-            <div class="points-track"><div class="points-fill" style="width:${pct}%;background:${next.color}"></div></div>
-        `;
-    } else {
-        progress = `<div class="points-level-line"><span class="ico" data-ico="sparkles"><svg viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg></span> 已达成最高等级！</div>`;
-    }
+    const pct = next
+        ? Math.max(0, Math.min(100, Math.round((userPoints - cur.min) / (next.min - cur.min) * 100)))
+        : 100;
+    const R = 30;
+    const C = 2 * Math.PI * R;
 
     el.innerHTML = `
         <div class="points-main">
-            <div class="points-num">${userPoints}<span class="points-unit">分</span></div>
-            <div class="points-identity">
-                <span class="points-level-icon">${cur.icon}</span>
-                <div>
-                    <div class="points-level-name">${cur.name} · Lv.${cur.level}</div>
-                    <div class="points-tip">记录/复习/练习可得积分，升级解锁等级</div>
+            <div class="points-ring">
+                <svg viewBox="0 0 72 72">
+                    <circle class="points-ring-bg" cx="36" cy="36" r="${R}"></circle>
+                    <circle class="points-ring-fill" cx="36" cy="36" r="${R}" style="stroke-dasharray:${C.toFixed(1)};stroke-dashoffset:${(C * (1 - pct / 100)).toFixed(1)}"></circle>
+                </svg>
+                <div class="points-ring-center"><span class="points-ring-lv">Lv.${cur.level}</span></div>
+            </div>
+            <div class="points-info">
+                <div class="points-info-top">
+                    <span class="points-level-icon">${cur.icon}</span>
+                    <span class="points-level-name">${cur.name}</span>
                 </div>
+                <div class="points-num">${userPoints}<span class="points-unit">分</span></div>
+                <div class="points-tip">${next ? `再得 ${next.min - userPoints} 分升至「${next.name}」` : '已达最高等级，学无止境'}</div>
             </div>
         </div>
-        ${progress}
     `;
+}
+
+/* ========================================
+ * 首页问候头部（Bento 仪表盘）
+ * ======================================== */
+function renderHero() {
+    const card = $('heroCard');
+    if (!card) return;
+
+    const now = new Date();
+    const h = now.getHours();
+    let greet = '晚上好';
+    if (h < 6) greet = '夜深了';
+    else if (h < 12) greet = '早上好';
+    else if (h < 18) greet = '下午好';
+
+    const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+    const dateStr = `${now.getMonth() + 1}月${now.getDate()}日 周${weekdays[now.getDay()]}`;
+
+    const total = mistakes.length;
+    const mastered = mistakes.filter(m => m.status === 'mastered').length;
+    const pct = total ? Math.round(mastered / total * 100) : 0;
+
+    let sub;
+    if (!total) sub = '记录第一道错题，开始成长';
+    else if (pct === 100) sub = '全部掌握，太棒了！';
+    else if (mastered > 0) sub = `已掌握 ${mastered}/${total} 道，继续加油`;
+    else sub = `${total} 道错题等着你逐一攻克`;
+
+    $('heroGreeting').textContent = greet;
+    $('heroDate').textContent = dateStr;
+    $('heroSub').textContent = sub;
+    $('heroRingNum').textContent = pct + '%';
+
+    const ring = $('heroRingFill');
+    if (ring) {
+        const C = 2 * Math.PI * 34;
+        ring.style.strokeDasharray = C;
+        ring.style.strokeDashoffset = C * (1 - pct / 100);
+    }
 }
 
 /* ========================================
@@ -2665,6 +2741,7 @@ function nextPracticeQuestion() {
     if (nextQ) {
         openPracticeQuestion(nextQ.id);
     } else {
+        celebrate(90);
         showToast('全部题目都已掌握，太棒了！');
         closePracticeModal();
         renderPracticeList();
@@ -3828,11 +3905,13 @@ function initShapeWaves() {
             return {
                 bg: '#0a84ff',
                 shapes: ['#64b5ff', '#a8d4ff', '#ffffff'],
+                glow: 'rgba(100, 181, 255, 0.30)',
             };
         }
         return {
             bg: '#0071e3',
             shapes: ['#42a1ff', '#8ec5ff', '#ffffff'],
+            glow: 'rgba(120, 190, 255, 0.45)',
         };
     }
 
@@ -3842,6 +3921,9 @@ function initShapeWaves() {
     let time = 0;
     let rafId = null;
     let running = true;
+    let enterStart = performance.now();  // 入场动画起点
+    const ENTER_DURATION = 1400;         // 入场动画时长(毫秒)
+    let ripples = [];                    // 触摸涟漪 { x, y, r }
 
     function resize() {
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -3889,14 +3971,53 @@ function initShapeWaves() {
         ctx.restore();
     }
 
+    function easeOutCubic(t) {
+        return 1 - Math.pow(1 - t, 3);
+    }
+
+    function spawnRipple(x, y) {
+        ripples.push({ x, y, r: 0 });
+        if (ripples.length > 8) ripples.shift();
+    }
+
     function frame() {
         if (!running) return;
-        const { shapes: shapeColors } = getColors();
+        const colors = getColors();
         const w = header.offsetWidth;
         const h = header.offsetHeight;
         ctx.clearRect(0, 0, w, h);
 
+        // 入场进度：0→1 缓动
+        const enter = Math.min(1, (performance.now() - enterStart) / ENTER_DURATION);
         time += 0.012;
+
+        // 涟漪推进
+        const rippleMax = Math.max(w, h) * 0.75;
+        for (let i = ripples.length - 1; i >= 0; i--) {
+            ripples[i].r += 2.2;
+            if (ripples[i].r > rippleMax) ripples.splice(i, 1);
+        }
+
+        // 涟漪辉光（叠加增亮）
+        if (ripples.length) {
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            for (const rp of ripples) {
+                const life = 1 - rp.r / rippleMax;
+                const g = ctx.createRadialGradient(rp.x, rp.y, 0, rp.x, rp.y, rp.r);
+                g.addColorStop(0, colors.glow);
+                g.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.globalAlpha = Math.max(0, life * 0.55);
+                ctx.fillStyle = g;
+                ctx.beginPath();
+                ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        const centerX = w / 2, centerY = h / 2;
+        const maxDist = Math.hypot(centerX, centerY) || 1;
 
         for (let r = 0; r < rows; r++) {
             for (let c = 0; c < cols; c++) {
@@ -3904,18 +4025,50 @@ function initShapeWaves() {
                 const y = r * cellSize + cellSize / 2;
                 // 波浪：基于位置和时间的正弦叠加
                 const wave = Math.sin(c * 0.25 + time) * 0.5 + Math.sin(r * 0.3 - time * 1.3) * 0.5;
-                const band = (wave + 1) / 2; // 0~1
-                const size = cellSize * (0.2 + band * 0.55);
+                let band = (wave + 1) / 2; // 0~1
+
+                // 涟漪推挤：靠近波前则放大提亮
+                for (const rp of ripples) {
+                    const d = Math.hypot(x - rp.x, y - rp.y);
+                    if (d < rp.r) band = Math.min(1, band + (1 - d / rp.r) * 0.6);
+                }
+
+                // 入场：自中心向外错落显现
+                const dist = Math.hypot(x - centerX, y - centerY) / maxDist;
+                const fade = easeOutCubic(Math.max(0, Math.min(1, enter * 1.4 - dist * 0.6)));
+                if (fade <= 0.01) continue;
+
+                const size = cellSize * (0.2 + band * 0.55) * (0.4 + fade * 0.6);
                 const colorIdx = Math.min(2, Math.floor(band * 3));
-                const alpha = 0.15 + band * 0.5;
-                drawShape(x, y, size, shapes[r][c], shapeColors[colorIdx], alpha);
+                const alpha = (0.15 + band * 0.5) * fade;
+                drawShape(x, y, size, shapes[r][c], colors.shapes[colorIdx], alpha);
             }
         }
         rafId = requestAnimationFrame(frame);
     }
 
     resize();
-    frame();
+
+    // 触摸/点击涟漪交互：按下与滑动均产生波纹
+    const inHeader = (p) => p.x >= 0 && p.y >= 0 && p.x <= header.offsetWidth && p.y <= header.offsetHeight;
+    function pointerPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
+    header.addEventListener('pointerdown', (e) => {
+        const p = pointerPos(e);
+        if (inHeader(p)) spawnRipple(p.x, p.y);
+    });
+    let lastMove = 0;
+    header.addEventListener('pointermove', (e) => {
+        const now = performance.now();
+        if (now - lastMove < 90) return;
+        lastMove = now;
+        const p = pointerPos(e);
+        if (inHeader(p)) spawnRipple(p.x, p.y);
+    });
+
+    rafId = requestAnimationFrame(frame);
 
     // 响应窗口尺寸与主题变化
     let resizeTimer;
@@ -4343,6 +4496,7 @@ function checkAchievements(showNewToast = true) {
     });
     if (newUnlocks.length) {
         saveAchievements();
+        celebrate(Math.min(140, 70 + newUnlocks.length * 30));
         if (showNewToast) {
             newUnlocks.forEach(a => showToast(`<span class="ico" data-ico="medal"><svg viewBox="0 0 24 24"><path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><path d="M11 12 5.12 2.2"/><path d="m13 12 5.88-9.8"/><path d="M8 7h8"/><circle cx="12" cy="17" r="5"/><path d="M12 18v-2h-.01"/></svg></span> 解锁成就：${a.icon} ${a.name}`, 2500));
         }
@@ -4548,6 +4702,7 @@ function finishChallenge() {
     checkAchievements(true);
 
     const percent = Math.round(score / (total * 10) * 100);
+    if (percent >= 80) celebrate(percent === 100 ? 120 : 80);
     const quotes = [
         [100, '<span class="ico" data-ico="trophy"><svg viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span> 满分！你是真正的学神！'],
         [80, '<span class="ico" data-ico="sparkles"><svg viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg></span> 非常棒，继续保持！'],
