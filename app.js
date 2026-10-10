@@ -1160,7 +1160,7 @@ function renderKnowledge() {
             infoEl.className = 'knowledge-search-info';
             $('knowledgeCategories').after(infoEl);
         }
-        infoEl.textContent = `<span class="ico" data-ico="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span> 「${knowledgeSearchKeyword.trim()}」 命中 ${items.length} 个知识点`;
+        infoEl.innerHTML = `<span class="ico" data-ico="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span> 「${escapeHtml(knowledgeSearchKeyword.trim())}」 命中 ${items.length} 个知识点`;
         infoEl.style.display = '';
     } else if (infoEl) {
         infoEl.style.display = 'none';
@@ -2730,7 +2730,7 @@ function openAIModal(mistakeId) {
     aiGeneratedQuestions = [];
     aiAnswerState = {};
 
-    $('aiModalTitle').textContent = '<span class="ico" data-ico="bot"><svg viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></span> AI 举一反三 · ' + (m.title || '').slice(0, 16);
+    $('aiModalTitle').innerHTML = '<span class="ico" data-ico="bot"><svg viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></span> AI 举一反三 · ' + escapeHtml((m.title || '').slice(0, 16));
     $('aiModal').style.display = 'flex';
 
     if (!aiConfig.apiKey || !aiConfig.baseURL || !aiConfig.model) {
@@ -3262,7 +3262,7 @@ function openAIDiagnosis(mistakeId) {
     aiDiagnoseMistake = m;
     aiDiagResult = null;
 
-    $('aiModalTitle').textContent = '<span class="ico" data-ico="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span> AI 诊断 · ' + (m.title || '').slice(0, 16);
+    $('aiModalTitle').innerHTML = '<span class="ico" data-ico="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span> AI 诊断 · ' + escapeHtml((m.title || '').slice(0, 16));
     $('aiModal').style.display = 'flex';
 
     if (!aiConfig.apiKey || !aiConfig.baseURL || !aiConfig.model) {
@@ -3562,7 +3562,7 @@ function openAIChat(mistakeId) {
     if (!m) { showToast('错题不存在'); return; }
     chatMistake = m;
     chatHistory = [];
-    $('chatModalTitle').textContent = '<span class="ico" data-ico="message-circle"><svg viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></span> AI 对话 · ' + (m.title || '').slice(0, 16);
+    $('chatModalTitle').innerHTML = '<span class="ico" data-ico="message-circle"><svg viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></span> AI 对话 · ' + escapeHtml((m.title || '').slice(0, 16));
     $('chatModal').style.display = 'flex';
     renderChatBody();
 
@@ -4184,7 +4184,7 @@ function renderReminderUI() {
     const tip = $('reminderTip');
     if (tip) {
         if (remindConfig.enabled && 'Notification' in window && Notification.permission === 'granted') {
-            tip.textContent = '<span class="ico" data-ico="check-circle"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span> 已开启：每天 ' + (remindConfig.time || '20:00') + ' 若有待复习错题将提醒你。';
+            tip.innerHTML = '<span class="ico" data-ico="check-circle"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span> 已开启：每天 ' + escapeHtml(remindConfig.time || '20:00') + ' 若有待复习错题将提醒你。';
         } else if (remindConfig.enabled) {
             tip.textContent = '已开启，但浏览器尚未授权通知权限，请点击右侧开关重新开启并允许通知。';
         } else {
@@ -4760,14 +4760,14 @@ async function runOCR() {
                 }
             }
         });
-        status.textContent = '<span class="ico" data-ico="check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span> 识别完成';
+        status.innerHTML = '<span class="ico" data-ico="check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span> 识别完成';
         result.value = (data.text || '').trim();
         result.style.display = 'block';
         fillBtn.style.display = 'block';
         showToast('识别完成，可编辑后填入表单');
     } catch (e) {
         console.error('OCR失败:', e);
-        status.textContent = '<span class="ico" data-ico="alert-triangle"><svg viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span> 识别失败：' + (e.message || '未知错误');
+        status.innerHTML = '<span class="ico" data-ico="alert-triangle"><svg viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span> 识别失败：' + escapeHtml(e.message || '未知错误');
     } finally {
         ocrBusy = false;
         startBtn.disabled = !ocrImageData;
@@ -5000,7 +5000,7 @@ async function aiAutoTag() {
     const hint = $('aiTagHint');
 
     if (!aiConfig.apiKey || !aiConfig.baseURL || !aiConfig.model) {
-        hint.textContent = '<span class="ico" data-ico="alert-triangle"><svg viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span> 尚未配置 AI，点击 AI 举一反三弹窗中的「<span class="ico" data-ico="settings"><svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span> 配置」先完成配置';
+        hint.innerHTML = '<span class="ico" data-ico="alert-triangle"><svg viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span> 尚未配置 AI，点击 AI 举一反三弹窗中的「<span class="ico" data-ico="settings"><svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span> 配置」先完成配置';
         hint.style.color = '#a07035';
         showToast('请先配置 AI');
         return;
@@ -5019,7 +5019,7 @@ async function aiAutoTag() {
     const existingTags = $('inputTags').value.split(/[,，]/).map(t => t.trim()).filter(Boolean);
 
     btn.disabled = true;
-    btn.textContent = '<span class="ico" data-ico="bot"><svg viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></span> 分析中…';
+    btn.innerHTML = '<span class="ico" data-ico="bot"><svg viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></span> 分析中…';
     hint.textContent = 'AI 正在分析题目，推荐标签与错因…';
     hint.style.color = '';
 
@@ -5067,20 +5067,20 @@ ${wrongCode || '（无）'}`;
         // 分类映射到语言？category 与语言无关，仅用于提示
         if (data.category && !$('inputNote').value.includes(data.category)) {
             // 不自动写类别，避免污染笔记；仅在 hint 展示
-            hint.textContent = `<span class="ico" data-ico="check-circle"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span> 已推荐 ${newTags.length} 个标签${data.category ? '（分类：' + data.category + '）' : ''}，可手动微调后保存`;
+            hint.innerHTML = `<span class="ico" data-ico="check-circle"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span> 已推荐 ${newTags.length} 个标签${data.category ? '（分类：' + escapeHtml(data.category) + '）' : ''}，可手动微调后保存`;
             hint.style.color = '#1a5c2e';
         } else {
-            hint.textContent = '<span class="ico" data-ico="check-circle"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span> AI 已打标，可手动微调后保存';
+            hint.innerHTML = '<span class="ico" data-ico="check-circle"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span> AI 已打标，可手动微调后保存';
             hint.style.color = '#1a5c2e';
         }
         showToast('<span class="ico" data-ico="check-circle"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span> AI 打标完成');
     } catch (e) {
         console.error('AI 打标失败:', e);
-        hint.textContent = '<span class="ico" data-ico="alert-triangle"><svg viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span> 打标失败：' + (e.message || '未知错误') + '，请重试或手动填写';
+        hint.innerHTML = '<span class="ico" data-ico="alert-triangle"><svg viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span> 打标失败：' + escapeHtml(e.message || '未知错误') + '，请重试或手动填写';
         hint.style.color = '#a04545';
     } finally {
         btn.disabled = false;
-        btn.textContent = '<span class="ico" data-ico="bot"><svg viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></span> AI 智能打标';
+        btn.innerHTML = '<span class="ico" data-ico="bot"><svg viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></span> AI 智能打标';
     }
 }
 
