@@ -437,7 +437,7 @@ function getReviewDateText(mistake) {
     const diffDays = Math.ceil((nextReview - today) / (24 * 60 * 60 * 1000));
 
     if (diffDays <= 0) return '<span style="color:#ff3b30"><span class="ico" data-ico="flame"><svg viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></span> 今天复习</span>';
-    if (diffDays === 1) return '<span style="color:#ff9500">⏰ 明天复习</span>';
+    if (diffDays === 1) return '<span style="color:var(--warning)">⏰ 明天复习</span>';
     return `<span><span class="ico" data-ico="calendar"><svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg></span> ${diffDays}天后复习</span>`;
 }
 
@@ -894,9 +894,9 @@ function renderDetail(m) {
         ` : ''}
 
         <button class="ai-gen-btn" onclick="openAIModal('${m.id}')"><span class="ico" data-ico="bot"><svg viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></span> AI 举一反三</button>
-        <button class="ai-gen-btn" style="background:#0071e3" onclick="openAIDiagnosis('${m.id}')"><span class="ico" data-ico="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span> AI 诊断</button>
-        <button class="ai-gen-btn" style="background:#0071e3" onclick="openAIChat('${m.id}')"><span class="ico" data-ico="message-circle"><svg viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></span> AI 对话</button>
-        <button class="ai-gen-btn" style="background:#0071e3" onclick="openShareModal('${m.id}')"><span class="ico" data-ico="upload"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg></span> 分享</button>
+        <button class="ai-gen-btn" style="background:var(--primary)" onclick="openAIDiagnosis('${m.id}')"><span class="ico" data-ico="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span> AI 诊断</button>
+        <button class="ai-gen-btn" style="background:var(--primary)" onclick="openAIChat('${m.id}')"><span class="ico" data-ico="message-circle"><svg viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></span> AI 对话</button>
+        <button class="ai-gen-btn" style="background:var(--primary)" onclick="openShareModal('${m.id}')"><span class="ico" data-ico="upload"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg></span> 分享</button>
         <div class="detail-footer">
             ${m.status !== 'mastered' ? `
                 <button class="action-btn success" onclick="markMastered('${m.id}')"><span class="ico" data-ico="check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span> 已掌握</button>
@@ -2206,7 +2206,7 @@ function renderRadar() {
             <span class="radar-legend-title">弱点集中度（值越高越弱）</span>
             <ul class="radar-legend-list">
                 ${data.map((d, i) => {
-                    const color = d.score > 0.66 ? '#ff3b30' : d.score > 0.33 ? '#ff9500' : '#34c759';
+                    const color = d.score > 0.66 ? 'var(--danger)' : d.score > 0.33 ? 'var(--warning)' : 'var(--success)';
                     return `<li><i class="legend-dot" style="background:${color}"></i>${escapeHtml(d.tag)} <b>${Math.round(d.score * 100)}%</b></li>`;
                 }).join('')}
             </ul>
@@ -2295,7 +2295,7 @@ function renderTrend() {
     const n = buckets.length;
     const max = Math.max(1, ...buckets.flatMap(b => [b.created, b.mastered]));
 
-    const dateColors = { created: '#0071e3', mastered: '#34c759' };
+    const dateColors = { created: 'var(--primary)', mastered: 'var(--success)' };
 
     function path(keyName) {
         let d = '';
@@ -2347,10 +2347,10 @@ function renderTrend() {
     svg.innerHTML = `
         <svg viewBox="0 0 ${W} ${H}" style="width:100%">
             ${grid}
-            <path d="${area('created')}" fill="#0071e3" opacity="0.08"/>
-            <path d="${path('created')}" fill="none" stroke="#0071e3" stroke-width="2"/>
-            <path d="${area('mastered')}" fill="#34c759" opacity="0.08"/>
-            <path d="${path('mastered')}" fill="none" stroke="#34c759" stroke-width="2"/>
+            <path d="${area('created')}" style="fill:var(--primary)" opacity="0.08"/>
+            <path d="${path('created')}" fill="none" style="stroke:var(--primary)" stroke-width="2"/>
+            <path d="${area('mastered')}" style="fill:var(--success)" opacity="0.08"/>
+            <path d="${path('mastered')}" fill="none" style="stroke:var(--success)" stroke-width="2"/>
             ${dots}
             ${xLabels}
         </svg>
@@ -4734,35 +4734,35 @@ function openShareModal(id) {
     $('shareOptions').innerHTML = `
         ${canNativeShare ? `
         <div class="share-option" onclick="shareNative()">
-            <div class="share-option-icon" style="background:#f0f4f8"><span class="ico" data-ico="upload"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg></span></div>
+            <div class="share-option-icon" style="background:var(--surface)"><span class="ico" data-ico="upload"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg></span></div>
             <div class="share-option-text">
                 <div class="share-option-name">系统分享</div>
                 <div class="share-option-hint">通过手机系统分享（含图片卡片）</div>
             </div>
         </div>` : ''}
         <div class="share-option" onclick="shareDownloadCard()">
-            <div class="share-option-icon" style="background:#f0f4f8"><span class="ico" data-ico="image"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span></div>
+            <div class="share-option-icon" style="background:var(--surface)"><span class="ico" data-ico="image"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span></div>
             <div class="share-option-text">
                 <div class="share-option-name">下载分享卡片</div>
                 <div class="share-option-hint">生成精美 PNG 图片，可发朋友圈 / 聊天群</div>
             </div>
         </div>
         <div class="share-option" onclick="shareCopyText()">
-            <div class="share-option-icon" style="background:#f0f4f8"><span class="ico" data-ico="clipboard"><svg viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></span></div>
+            <div class="share-option-icon" style="background:var(--surface)"><span class="ico" data-ico="clipboard"><svg viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></span></div>
             <div class="share-option-text">
                 <div class="share-option-name">复制题目文本</div>
                 <div class="share-option-hint">复制到剪贴板，粘贴到聊天软件</div>
             </div>
         </div>
         <div class="share-option" onclick="shareCopyLink()">
-            <div class="share-option-icon" style="background:#f0f4f8"><span class="ico" data-ico="link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span></div>
+            <div class="share-option-icon" style="background:var(--surface)"><span class="ico" data-ico="link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span></div>
             <div class="share-option-text">
                 <div class="share-option-name">复制应用链接</div>
                 <div class="share-option-hint">把错题本应用分享给同学</div>
             </div>
         </div>
         <div class="share-option" onclick="shareToWeibo()">
-            <div class="share-option-icon" style="background:#f0f4f8"><span class="ico" data-ico="twitter"><svg viewBox="0 0 24 24"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg></span></div>
+            <div class="share-option-icon" style="background:var(--surface)"><span class="ico" data-ico="twitter"><svg viewBox="0 0 24 24"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg></span></div>
             <div class="share-option-text">
                 <div class="share-option-name">分享到微博</div>
                 <div class="share-option-hint">跳转微博网页发布</div>
@@ -5013,7 +5013,7 @@ function renderSyncBody(statusHtml = '') {
         </div>
         <div class="sync-status ${syncConfig.user ? 'ok' : ''}" id="syncStatus">${statusHtml || (syncConfig.user ? '<span class="ico" data-ico="check-circle"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span> 已连接 GitHub 账号：' + escapeHtml(syncConfig.user) : '<span class="ico" data-ico="lightbulb"><svg viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></span> 填写 Token 后先点击「检测连接」')}</div>
         <button class="practice-quiz-btn practice-quiz-btn-primary" onclick="saveSyncInputs(); syncTest()"><span class="ico" data-ico="plug"><svg viewBox="0 0 24 24"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg></span> 检测连接</button>
-        <button class="practice-quiz-btn practice-quiz-btn-primary" style="background:#0071e3" onclick="saveSyncInputs(); syncPush()"><span class="ico" data-ico="cloud"><svg viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg></span> 立即备份上传</button>
+        <button class="practice-quiz-btn practice-quiz-btn-primary" style="background:var(--primary)" onclick="saveSyncInputs(); syncPush()"><span class="ico" data-ico="cloud"><svg viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg></span> 立即备份上传</button>
         <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="saveSyncInputs(); syncPull(false)"><span class="ico" data-ico="download"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></span> 云端下载（合并到本地）</button>
         <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="saveSyncInputs(); syncPull(true)"><span class="ico" data-ico="recycle"><svg viewBox="0 0 24 24"><path d="M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5"/><path d="M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12"/><path d="m14 16-3 3 3 3"/><path d="M8.293 13.596 7.196 9.5 3.1 10.598"/><path d="m9.344 5.811 1.093-1.892A1.83 1.83 0 0 1 11.985 3a1.784 1.784 0 0 1 1.546.888l3.943 6.843"/><path d="m13.378 9.633 4.096 1.098 1.097-4.096"/></svg></span>️ 云端覆盖本地</button>
         <div style="font-size:12px;color:var(--text-secondary)">${lastText}</div>
@@ -5156,7 +5156,7 @@ async function aiAutoTag() {
 
     if (!aiConfig.apiKey || !aiConfig.baseURL || !aiConfig.model) {
         hint.innerHTML = '<span class="ico" data-ico="alert-triangle"><svg viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span> 尚未配置 AI，点击 AI 举一反三弹窗中的「<span class="ico" data-ico="settings"><svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span> 配置」先完成配置';
-        hint.style.color = '#a07035';
+        hint.style.color = 'var(--warning)';
         showToast('请先配置 AI');
         return;
     }
@@ -5223,16 +5223,16 @@ ${wrongCode || '（无）'}`;
         if (data.category && !$('inputNote').value.includes(data.category)) {
             // 不自动写类别，避免污染笔记；仅在 hint 展示
             hint.innerHTML = `<span class="ico" data-ico="check-circle"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span> 已推荐 ${newTags.length} 个标签${data.category ? '（分类：' + escapeHtml(data.category) + '）' : ''}，可手动微调后保存`;
-            hint.style.color = '#1a5c2e';
+            hint.style.color = 'var(--success-text)';
         } else {
             hint.innerHTML = '<span class="ico" data-ico="check-circle"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span> AI 已打标，可手动微调后保存';
-            hint.style.color = '#1a5c2e';
+            hint.style.color = 'var(--success-text)';
         }
         showToast('<span class="ico" data-ico="check-circle"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span> AI 打标完成');
     } catch (e) {
         console.error('AI 打标失败:', e);
         hint.innerHTML = '<span class="ico" data-ico="alert-triangle"><svg viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span> 打标失败：' + escapeHtml(e.message || '未知错误') + '，请重试或手动填写';
-        hint.style.color = '#a04545';
+        hint.style.color = 'var(--danger-text)';
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<span class="ico" data-ico="bot"><svg viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></span> AI 智能打标';
