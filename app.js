@@ -426,7 +426,7 @@ function getStatusClass(mistake, reviewStatus) {
 }
 
 function getReviewDateText(mistake) {
-    if (mistake.status === 'mastered') return '<span style="color:#34c759"><span class="ico" data-ico="check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span> 已掌握</span>';
+    if (mistake.status === 'mastered') return '<span style="color:var(--success-text)"><span class="ico" data-ico="check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span> 已掌握</span>';
 
     const nextReview = getNextReviewDate(mistake);
     if (!nextReview) return '<span><span class="ico" data-ico="check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span> 复习完成</span>';
@@ -436,7 +436,7 @@ function getReviewDateText(mistake) {
     const today = now.getTime();
     const diffDays = Math.ceil((nextReview - today) / (24 * 60 * 60 * 1000));
 
-    if (diffDays <= 0) return '<span style="color:#ff3b30"><span class="ico" data-ico="flame"><svg viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></span> 今天复习</span>';
+    if (diffDays <= 0) return '<span style="color:var(--danger-text)"><span class="ico" data-ico="flame"><svg viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></span> 今天复习</span>';
     if (diffDays === 1) return '<span style="color:var(--warning)">⏰ 明天复习</span>';
     return `<span><span class="ico" data-ico="calendar"><svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg></span> ${diffDays}天后复习</span>`;
 }
@@ -2340,7 +2340,7 @@ function renderTrend() {
         buckets.forEach((b, i) => {
             const x = PAD.l + (n === 1 ? innerW / 2 : innerW * i / (n - 1));
             const y = PAD.t + innerH - (b[kn] / max) * innerH;
-            dots += `<circle cx="${x}" cy="${y}" r="3" fill="${dateColors[kn]}"><title>${b.label} 新增${b.created} 掌握${b.mastered}</title></circle>`;
+            dots += `<circle cx="${x}" cy="${y}" r="3" style="fill:${dateColors[kn]}"><title>${b.label} 新增${b.created} 掌握${b.mastered}</title></circle>`;
         });
     });
 
