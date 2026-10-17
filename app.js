@@ -1892,7 +1892,7 @@ function renderPoints() {
             <div class="points-ring">
                 <svg viewBox="0 0 72 72">
                     <circle class="points-ring-bg" cx="36" cy="36" r="${R}"></circle>
-                    <circle class="points-ring-fill" cx="36" cy="36" r="${R}" style="stroke-dasharray:${C.toFixed(1)};stroke-dashoffset:${(C * (1 - pct / 100)).toFixed(1)}"></circle>
+                    <circle class="points-ring-fill" cx="36" cy="36" r="${R}" style="stroke-dasharray:${C.toFixed(1)};stroke-dashoffset:${C.toFixed(1)}"></circle>
                 </svg>
                 <div class="points-ring-center"><span class="points-ring-lv">Lv.${cur.level}</span></div>
             </div>
@@ -1906,6 +1906,11 @@ function renderPoints() {
             </div>
         </div>
     `;
+
+    requestAnimationFrame(() => {
+        const fill = el.querySelector('.points-ring-fill');
+        if (fill) fill.style.strokeDashoffset = (C * (1 - pct / 100)).toFixed(1);
+    });
 }
 
 /* ========================================

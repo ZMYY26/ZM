@@ -516,6 +516,7 @@ a .ico,
     font-weight: 700;
     color: var(--primary);
     line-height: 1;
+    font-variant-numeric: tabular-nums;
 }
 .hero-ring-label {
     font-size: 10px;
@@ -553,8 +554,14 @@ a .ico,
     display: block;
     font-size: 24px;
     font-weight: 700;
-    color: var(--primary);
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.5px;
 }
+
+.stat-item:nth-child(1) .stat-num { color: var(--primary); }
+.stat-item:nth-child(2) .stat-num { color: var(--warning); }
+.stat-item:nth-child(3) .stat-num { color: var(--success); }
 
 .stat-label {
     font-size: 12px;
@@ -656,7 +663,7 @@ a .ico,
 }
 
 .status-reviewing {
-    background: #faf6ef;
+    background: var(--warning-tint);
     color: var(--warning);
 }
 
@@ -2838,6 +2845,7 @@ a .ico,
     font-weight: 800;
     color: var(--text);
     line-height: 1;
+    font-variant-numeric: tabular-nums;
 }
 
 .streak-unit {
@@ -3021,6 +3029,7 @@ a .ico,
     color: var(--primary);
     line-height: 1.2;
     margin-top: 4px;
+    font-variant-numeric: tabular-nums;
 }
 .points-unit {
     font-size: 12px;
@@ -3412,7 +3421,25 @@ a .ico,
 .challenge-card-info { flex: 1; min-width: 0; }
 .challenge-card-title { font-size: 15px; font-weight: 700; }
 .challenge-card-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
-.challenge-card-go { font-size: 22px; color: var(--primary); }
+.challenge-card-go {
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: var(--primary);
+    background: rgba(0, 113, 227, 0.1);
+    border-radius: 50%;
+    transition: transform 0.2s var(--ease), background 0.2s;
+}
+.challenge-card:hover .challenge-card-go {
+    transform: translateX(2px);
+    background: rgba(0, 113, 227, 0.16);
+}
+[data-theme="dark"] .challenge-card-go { background: rgba(10, 132, 255, 0.18); }
+[data-theme="dark"] .challenge-card:hover .challenge-card-go { background: rgba(10, 132, 255, 0.28); }
 
 /* ========== 挑战模态框 ========== */
 .challenge-modal-content {
