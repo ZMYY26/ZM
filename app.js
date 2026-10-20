@@ -10,7 +10,10 @@ let mistakes = [];
 let currentPage = 'pageHome';
 let editingId = null;
 let currentDetailId = null;
+// 图片：dataURL 只留在内存里做预览，持久化走 IndexedDB（见 image-store.js）
 let uploadedImage = null;
+let uploadedImageId = null;   // 已存入 IndexedDB 的图片 id
+let imageDirty = false;       // 本次编辑里用户是否动过图片
 let knowledgeActiveCategory = '';
 let knowledgeSearchKeyword = '';
 
@@ -149,6 +152,29 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+/**
+ * 代码高亮的安全封装。
+ * highlight.js 由本地 vendor 提供，可能因网络/完整性校验失败而没加载成功；
+ * 那种情况下必须降级成纯文本，而不是让整个详情页抛 ReferenceError 白屏。
+ */
+function highlightCode(code, lang) {
+    const src = code == null ? '' : String(code);
+    if (typeof hljs === 'undefined' || !hljs || typeof hljs.highlight !== 'function') {
+        return escapeHtml(src);
+    }
+    try {
+        const language = lang && typeof hljs.getLanguage === 'function' && hljs.getLanguage(lang)
+            ? lang
+            : null;
+        return language
+            ? hljs.highlight(src, { language }).value
+            : hljs.highlightAuto(src).value;
+    } catch (e) {
+        console.warn('代码高亮失败，已降级为纯文本:', e);
+        return escapeHtml(src);
+    }
+}
+
 // ========== 轻量 Markdown 渲染 ==========
 // 支持：标题、加粗、斜体、行内代码、代码块、有序/无序列表、链接、换行、分隔线
 function renderMarkdown(text) {
@@ -220,7 +246,7 @@ function renderMarkdown(text) {
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         // 仅 HTTPS 或 localhost 生效
-        navigator.serviceWorker.register('./sw.js?v=5').catch((err) => {
+        navigator.serviceWorker.register('./sw.js?v=6').catch((err) => {
             console.warn('Service Worker 注册失败:', err);
         });
     }
@@ -242,13 +268,61 @@ function saveData() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(mistakes));
     } catch (e) {
         if (e.name === 'QuotaExceededError') {
-            showToast('存储空间已满，请删除一些图片或错题');
+            showToast('存储空间已满，请删除一些错题');
         } else {
             console.error('保存数据失败:', e);
         }
     }
     // 云端自动同步（若已开启并配置）
     maybeAutoSync();
+}
+
+/**
+ * 老版本把图片 base64 直接存在 code_mistake_book_v1 里，正是它把 localStorage 撑爆的。
+ * 启动时把这些内联图片搬进 IndexedDB，记录里换成 imageId，然后把 localStorage 瘦下来。
+ * 同时清理不再被任何错题引用的孤儿图片。
+ *
+ * 并发保护：init() 和「云端覆盖本地」都会调它。两次并发时，先结束的那次会用
+ * 陈旧的 imageId 列表去做 prune，把另一次刚写进去的图片当成孤儿删掉 —— 所以共享同一个 Promise。
+ */
+let migrationRun = null;
+
+function migrateLegacyImages() {
+    if (migrationRun) return migrationRun;
+    migrationRun = runLegacyImageMigration().finally(() => { migrationRun = null; });
+    return migrationRun;
+}
+
+async function runLegacyImageMigration() {
+    if (typeof imageStore === 'undefined' || !imageStore.supported()) return;
+
+    let changed = false;
+    for (const m of mistakes) {
+        if (!m) continue;
+        const inline = m.image;
+        if (typeof inline === 'string' && inline.indexOf('data:') === 0 && !m.imageId) {
+            try {
+                m.imageId = await imageStore.put(inline);
+                delete m.image;
+                changed = true;
+            } catch (e) {
+                console.warn('旧图片迁移失败，保留原始数据:', e);
+            }
+        }
+    }
+    if (changed) {
+        saveData();
+        refreshCurrentPage();
+        showToast('图片存储已升级，空间占用大幅减少');
+    }
+
+    try {
+        // 用迁移结束后的真实引用列表清理，且只跑在迁移收尾阶段
+        const usedIds = mistakes.map(m => m && m.imageId).filter(Boolean);
+        await imageStore.prune(usedIds);
+    } catch (e) {
+        console.warn('清理孤儿图片失败:', e);
+    }
 }
 
 // ========== 复习计划计算 ==========
@@ -686,9 +760,11 @@ function renderReview() {
 function openAddForm() {
     editingId = null;
     uploadedImage = null;
+    uploadedImageId = null;
+    imageDirty = false;
 
     $('mistakeForm').reset();
-    $('imagePreview').innerHTML = '';
+    renderImagePreview();
     $('pageTitle').textContent = '添加错题';
 
     switchPage('pageEdit');
@@ -699,7 +775,9 @@ function openEditForm(id) {
     if (!m) return;
 
     editingId = id;
-    uploadedImage = m.image || null;
+    uploadedImage = null;
+    uploadedImageId = m.imageId || null;
+    imageDirty = false;
 
     $('inputTitle').value = m.title;
     $('inputLang').value = m.lang;
@@ -710,51 +788,67 @@ function openEditForm(id) {
     $('inputNote').value = m.note || '';
     $('inputSource').value = m.source || '其他';
 
-    // 图片预览
-    const preview = $('imagePreview');
-    if (m.image) {
-        preview.innerHTML = `
-            <img src="${m.image}" alt="题目图片">
-            <button type="button" class="image-remove" onclick="removeImage()"><span class="ico" data-ico="x"><svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span></button>
-        `;
-    } else {
-        preview.innerHTML = '';
+    // 图片预览：数据在 IndexedDB 里，异步取回来
+    renderImagePreview();
+    if (uploadedImageId) {
+        imageStore.get(uploadedImageId).then((dataUrl) => {
+            if (editingId !== id) return;   // 期间用户已经切走了
+            uploadedImage = dataUrl || null;
+            renderImagePreview();
+        }).catch((err) => {
+            console.warn('读取图片失败:', err);
+        });
     }
 
     $('pageTitle').textContent = '编辑错题';
     switchPage('pageEdit');
 }
 
+/** 把内存里的 uploadedImage 画进预览区（唯一的渲染入口，避免三处重复模板） */
+function renderImagePreview() {
+    const box = $('imagePreview');
+    if (!box) return;
+    box.innerHTML = uploadedImage ? `
+        <img src="${uploadedImage}" alt="题目图片">
+        <button type="button" class="image-remove" onclick="removeImage()"><span class="ico" data-ico="x"><svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span></button>
+    ` : '';
+}
+
 function removeImage() {
     uploadedImage = null;
+    uploadedImageId = null;
+    imageDirty = true;
     $('inputImage').value = '';
-    $('imagePreview').innerHTML = '';
+    renderImagePreview();
 }
 
 function handleImageUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    // 检查文件大小（限制 2MB，因为 localStorage 有配额）
-    if (file.size > 2 * 1024 * 1024) {
-        showToast('图片太大了，请压缩后再上传');
+    // 图片存在 IndexedDB（配额 GB 级），这里的上限只是为了挡住离谱的大文件
+    if (file.size > 12 * 1024 * 1024) {
+        showToast('图片太大了（超过 12MB），请裁剪后再上传');
         event.target.value = '';
         return;
     }
 
     const reader = new FileReader();
-    reader.onload = function(e) {
-        uploadedImage = e.target.result;
-
-        $('imagePreview').innerHTML = `
-            <img src="${uploadedImage}" alt="题目图片">
-            <button type="button" class="image-remove" onclick="removeImage()"><span class="ico" data-ico="x"><svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span></button>
-        `;
+    reader.onload = async function(e) {
+        let dataUrl = e.target.result;
+        try {
+            dataUrl = await imageStore.compress(dataUrl);   // 超过 1600px 会等比缩小
+        } catch (err) {
+            console.warn('图片压缩失败，使用原图:', err);
+        }
+        uploadedImage = dataUrl;
+        imageDirty = true;
+        renderImagePreview();
     };
     reader.readAsDataURL(file);
 }
 
-function handleFormSubmit(event) {
+async function handleFormSubmit(event) {
     event.preventDefault();
 
     const title = $('inputTitle').value.trim();
@@ -771,6 +865,25 @@ function handleFormSubmit(event) {
 
     const tags = tagsStr ? tagsStr.split(/[,，]/).map(t => t.trim()).filter(Boolean) : [];
 
+    // 先把图片落到 IndexedDB，再记账 —— 记录里只存 imageId
+    const original = editingId ? mistakes.find(m => m.id === editingId) : null;
+    const previousImageId = original && original.imageId ? original.imageId : null;
+    let nextImageId = previousImageId;
+
+    if (imageDirty) {
+        if (uploadedImage) {
+            try {
+                nextImageId = await imageStore.put(uploadedImage);
+            } catch (e) {
+                console.error('图片保存失败:', e);
+                showToast('图片保存失败，请重试');
+                return;
+            }
+        } else {
+            nextImageId = null;
+        }
+    }
+
     if (editingId) {
         // 编辑
         const idx = mistakes.findIndex(m => m.id === editingId);
@@ -778,7 +891,7 @@ function handleFormSubmit(event) {
             mistakes[idx] = {
                 ...mistakes[idx],
                 title, lang, desc, wrongCode, rightCode, tags, note, source,
-                image: uploadedImage,
+                imageId: nextImageId,
                 updatedAt: Date.now()
             };
             showToast('修改成功');
@@ -788,7 +901,7 @@ function handleFormSubmit(event) {
         mistakes.push({
             id: generateId(),
             title, lang, desc, wrongCode, rightCode, tags, note, source,
-            image: uploadedImage,
+            imageId: nextImageId,
             status: 'pending',
             reviewCount: 0,
             lastReviewAt: Date.now(),
@@ -799,6 +912,11 @@ function handleFormSubmit(event) {
         addPoints(10, '记录新错题');
         checkAchievements(true);
         showToast('添加成功');
+    }
+
+    // 换了图或删了图，旧的那张就没用了
+    if (previousImageId && previousImageId !== nextImageId) {
+        imageStore.del(previousImageId).catch(() => {});
     }
 
     saveData();
@@ -819,8 +937,8 @@ function renderDetail(m) {
     const container = $('detailContainer');
 
     // 代码高亮
-    const wrongCodeHtml = m.wrongCode ? hljs.highlight(m.wrongCode, { language: m.lang }).value : '';
-    const rightCodeHtml = m.rightCode ? hljs.highlight(m.rightCode, { language: m.lang }).value : '';
+    const wrongCodeHtml = m.wrongCode ? highlightCode(m.wrongCode, m.lang) : '';
+    const rightCodeHtml = m.rightCode ? highlightCode(m.rightCode, m.lang) : '';
 
     const nextReview = getNextReviewDate(m);
     const nextReviewText = nextReview ? formatDate(nextReview) : '复习完成 <span class="ico" data-ico="check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>';
@@ -853,11 +971,11 @@ function renderDetail(m) {
             </div>
         ` : ''}
 
-        ${m.image ? `
+        ${m.imageId ? `
             <div class="detail-section">
                 <div class="detail-section-title">题目图片</div>
                 <div class="detail-image">
-                    <img src="${m.image}" alt="题目图片">
+                    <img data-image-id="${escapeHtml(m.imageId)}" alt="题目图片">
                 </div>
             </div>
         ` : ''}
@@ -907,6 +1025,32 @@ function renderDetail(m) {
             <button class="action-btn danger" onclick="deleteMistake('${m.id}')"><span class="ico" data-ico="trash-2"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg></span> 删除</button>
         </div>
     `;
+
+    // 图片存在 IndexedDB 里，渲染完再把 src 补上
+    hydrateImages(container);
+}
+
+/** 把 renderXxx 生成的 <img data-image-id> 从 IndexedDB 填上真实 src */
+function hydrateImages(root) {
+    if (!root || typeof imageStore === 'undefined') return;
+    root.querySelectorAll('img[data-image-id]').forEach((img) => {
+        const id = img.getAttribute('data-image-id');
+        if (!id) return;
+        imageStore.get(id).then((dataUrl) => {
+            if (!dataUrl) {
+                // 图片只在本地 IndexedDB 里，云端同步不会带图；换设备后就会到这一步
+                const note = document.createElement('div');
+                note.className = 'image-missing';
+                note.textContent = '图片未同步到本机';
+                img.replaceWith(note);
+                return;
+            }
+            img.src = dataUrl;
+        }).catch((err) => {
+            console.warn('图片读取失败:', err);
+            img.alt = '图片读取失败';
+        });
+    });
 }
 
 // ========== 错题分享卡片 ==========
@@ -1110,8 +1254,15 @@ function unmarkMastered(id) {
 function deleteMistake(id) {
     if (!confirm('确定要删除这道错题吗？此操作不可恢复。')) return;
 
+    const target = mistakes.find(m => m.id === id);
     mistakes = mistakes.filter(m => m.id !== id);
     saveData();
+
+    // 连同 IndexedDB 里的图片一起删掉，别留孤儿占空间
+    if (target && target.imageId && typeof imageStore !== 'undefined') {
+        imageStore.del(target.imageId).catch(() => {});
+    }
+
     showToast('已删除');
     switchPage('pageHome');
 }
@@ -1337,7 +1488,7 @@ function viewKnowledge(id) {
 
     // 代码高亮
     const codeHtml = item.code
-        ? hljs.highlight(item.code, { language: item.codeLang || 'plaintext' }).value
+        ? highlightCode(item.code, item.codeLang || 'plaintext')
         : '';
 
     detail.innerHTML = `
@@ -1490,6 +1641,8 @@ function bindFilterEvents() {
 function init() {
     // 加载数据
     loadData();
+    // 老数据里的内联 base64 图片搬到 IndexedDB（异步，不阻塞首屏）
+    migrateLegacyImages();
     loadPracticeRecords();
     loadActivityLog();
     loadPoints();
@@ -1720,7 +1873,7 @@ function addSampleData() {
             tags: ['快速排序', '边界条件', '分治'],
             note: '记住：快速排序的递归边界是 [left, i-1] 和 [i+1, right]，因为 i 位置已经是正确的。这是最常见的边界条件错误之一！',
             source: '蓝桥杯',
-            image: null,
+            imageId: null,
             status: 'pending',
             reviewCount: 0,
             lastReviewAt: Date.now(),
@@ -1748,7 +1901,7 @@ print(b)     # [1, 2, 3, 4, 5, 6]`,
             tags: ['列表', '引用', '浅拷贝', 'Python基础'],
             note: 'Python 中 a = b 只是复制了引用。对于列表复制，使用 .copy()、[:] 或 list()。嵌套列表需要用 deepcopy。',
             source: '课堂',
-            image: null,
+            imageId: null,
             status: 'pending',
             reviewCount: 1,
             lastReviewAt: Date.now() - 1 * 24 * 60 * 60 * 1000,
@@ -1785,7 +1938,7 @@ for (var i = 0; i < 5; i++) {
             tags: ['闭包', 'var vs let', '循环'],
             note: 'var 没有块级作用域，循环中的 setTimeout 回调共享同一个 i。使用 let（有块级作用域）或 IIFE 解决。',
             source: 'LeetCode',
-            image: null,
+            imageId: null,
             status: 'mastered',
             reviewCount: 6,
             lastReviewAt: Date.now() - 1 * 24 * 60 * 60 * 1000,
@@ -3237,14 +3390,7 @@ function renderAIQuestionText(text) {
         } else if (i % 3 === 2) {
             const lang = (parts[i - 1] || '').trim();
             const code = parts[i].replace(/\n$/, '');
-            let codeHtml;
-            try {
-                codeHtml = lang && hljs.getLanguage(lang)
-                    ? hljs.highlight(code, { language: lang }).value
-                    : hljs.highlightAuto(code).value;
-            } catch (e) {
-                codeHtml = escapeHtml(code);
-            }
+            const codeHtml = highlightCode(code, lang);
             html += `<pre class="ai-q-code"><code class="hljs">${codeHtml}</code></pre>`;
         }
     }
@@ -3481,13 +3627,8 @@ function renderDiagnosisBody(state) {
 
     if (state.type === 'success') {
         const r = state.result;
-        const lang = hljs.getLanguage(r.lang) ? r.lang : 'text';
-        let correctHtml;
-        try {
-            correctHtml = r?.correctCode ? hljs.highlight(r.correctCode, { language: lang }).value : blankNote;
-        } catch (e) {
-            correctHtml = r?.correctCode ? escapeHtml(r.correctCode) : '';
-        }
+        const lang = (typeof hljs !== 'undefined' && hljs && typeof hljs.getLanguage === 'function' && hljs.getLanguage(r.lang)) ? r.lang : 'text';
+        const correctHtml = r?.correctCode ? highlightCode(r.correctCode, lang) : blankNote;
         const tipsHtml = (r.tips || []).length
             ? `<div class="diag-tips"><div class="diag-label"><span class="ico" data-ico="brain"><svg viewBox="0 0 24 24"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/></svg></span> 易错口诀</div><ul>${r.tips.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`
             : '';
@@ -4300,6 +4441,17 @@ function applyTheme(theme) {
         document.documentElement.removeAttribute('data-theme');
         $('themeToggleBtn').innerHTML = moon;
     }
+    syncThemeColor(theme);
+}
+
+/**
+ * 同步 <meta name="theme-color">：浏览器地址栏、以及 PWA 独立窗口的标题栏都取这个值。
+ * 应用主题由 data-theme 属性驱动（不跟随系统 prefers-color-scheme），所以必须手动同步。
+ */
+function syncThemeColor(theme) {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) return;
+    meta.setAttribute('content', theme === 'dark' ? '#0a0a0c' : '#f5f5f7');
 }
 
 function loadTheme() {
@@ -5141,6 +5293,8 @@ async function syncPull(overwrite) {
         }
         mistakes = next;
         saveData();
+        // 云端备份可能来自旧版本（记录里带内联 base64 图片），拉回来统一迁移一次
+        migrateLegacyImages();
         syncConfig.lastSyncAt = Date.now();
         saveSyncConfig();
         setSyncStatus('<span class="ico" data-ico="check-circle"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span> 已恢复 ' + mistakes.length + ' 道错题' + (overwrite ? '（云端数据已覆盖本地）' : '（已与本地合并）'), true);
