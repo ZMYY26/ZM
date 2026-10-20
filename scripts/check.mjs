@@ -87,5 +87,16 @@ check(/v\d+$/.test(cacheName || ''), 'CACHE_NAME 带版本后缀', cacheName)
 check((cacheName || '').endsWith('v' + [...htmlVersions][0]), 'CACHE_NAME 版本与资源版本对齐',
   `${cacheName} vs v${[...htmlVersions][0]}`)
 
+// 8. index.html 引用的每个本地脚本/样式都必须进 SW 预缓存清单（否则离线会缺件）
+console.log('\n[8] 离线完整性：本地脚本是否都在预缓存里')
+const swAssets = coreBlock
+  ? [...coreBlock[1].matchAll(/'([^']+)'/g)].map((m) => m[1].replace(/^\.\//, '').split('?')[0])
+  : []
+const localScripts = [...html.matchAll(/<(?:script|link)\b[^>]*(?:src|href)="([^":]+\.(?:js|css))[^"]*"/g)]
+  .map((m) => m[1])
+for (const asset of localScripts) {
+  check(swAssets.includes(asset), asset + ' 已预缓存')
+}
+
 console.log(failures === 0 ? '\n全部通过 ✓' : `\n${failures} 项失败 ✗`)
 process.exitCode = failures === 0 ? 0 : 1

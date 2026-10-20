@@ -7,23 +7,26 @@
  *  - 静态资源：stale-while-revalidate —— 立刻用缓存渲染，同时后台拉新版本写入下次。
  *  - 跨域请求：不拦截。
  * ======================================== */
-const CACHE_NAME = 'code-mistake-book-v6';
+const CACHE_NAME = 'code-mistake-book-v7';
 
 // 预缓存的核心资源（版本号变了一起变，见 index.html 里的 ?v=）
 const CORE_ASSETS = [
     './',
     './index.html',
-    './style.css?v=6',
-    './app.js?v=6',
-    './image-store.js?v=6',
-    './practice-data.js?v=6',
-    './knowledge-data.js?v=6',
+    './style.css?v=7',
+    './app.js?v=7',
+    './image-store.js?v=7',
+    './cloud-config.js?v=7',
+    './account.js?v=7',
+    './cloud-sync.js?v=7',
+    './practice-data.js?v=7',
+    './knowledge-data.js?v=7',
     './manifest.webmanifest',
     './assets/icon-192.png',
     './assets/icon-512.png',
     './assets/icon-maskable-512.png',
-    './vendor/highlight/highlight.min.js?v=6',
-    './vendor/highlight/atom-one-light.min.css?v=6'
+    './vendor/highlight/highlight.min.js?v=7',
+    './vendor/highlight/atom-one-light.min.css?v=7'
 ];
 
 // 安装：预缓存核心资源。单个资源失败不再让整次安装放弃缓存。

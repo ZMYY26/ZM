@@ -25,6 +25,8 @@
     const JPEG_QUALITY = 0.85;
 
     let dbPromise = null;
+    // 本地没有这张图时的兜底：由 cloud-sync 注入，负责去对象存储取
+    let remoteResolver = null;
 
     function supported() {
         return typeof global.indexedDB !== 'undefined';
@@ -52,9 +54,7 @@
         return dbPromise;
     }
 
-    async function put(dataUrl) {
-        if (!dataUrl) throw new Error('空图片');
-        const id = newId();
+    async function putRaw(id, dataUrl) {
         const db = await openDB();
         await new Promise(function (resolve, reject) {
             const tx = db.transaction(STORE, 'readwrite');
@@ -66,7 +66,19 @@
         return id;
     }
 
-    async function get(id) {
+    async function put(dataUrl) {
+        if (!dataUrl) throw new Error('空图片');
+        return putRaw(newId(), dataUrl);
+    }
+
+    /** 用指定 id 写入（云端下载回来的图片要沿用同一个 imageId） */
+    async function saveAs(id, dataUrl) {
+        if (!id || !dataUrl) return null;
+        return putRaw(id, dataUrl);
+    }
+
+    /** 只查本地，不触发远程兜底 */
+    async function getLocal(id) {
         if (!id) return null;
         const db = await openDB();
         return new Promise(function (resolve, reject) {
@@ -75,6 +87,26 @@
             req.onsuccess = function () { resolve(req.result || null); };
             req.onerror = function () { reject(req.error); };
         });
+    }
+
+    /**
+     * 取图片：先看本地；本地没有且接了云端（已登录），就去对象存储拉一次并缓存。
+     * 断网 / 未登录时行为与以前一致，返回 null。
+     */
+    async function get(id) {
+        const local = await getLocal(id);
+        if (local) return local;
+        if (!id || !remoteResolver) return null;
+        try {
+            return await remoteResolver(id);
+        } catch (e) {
+            console.warn('远程图片获取失败:', e);
+            return null;
+        }
+    }
+
+    function setRemoteResolver(fn) {
+        remoteResolver = typeof fn === 'function' ? fn : null;
     }
 
     async function del(id) {
@@ -155,10 +187,13 @@
         supported: supported,
         put: put,
         get: get,
+        getLocal: getLocal,
+        saveAs: saveAs,
         del: del,
         keys: keys,
         prune: prune,
         compress: compress,
+        setRemoteResolver: setRemoteResolver,
         MAX_SIDE: MAX_SIDE
     };
 })(window);

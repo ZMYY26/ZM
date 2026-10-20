@@ -246,7 +246,7 @@ function renderMarkdown(text) {
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         // 仅 HTTPS 或 localhost 生效
-        navigator.serviceWorker.register('./sw.js?v=6').catch((err) => {
+        navigator.serviceWorker.register('./sw.js?v=7').catch((err) => {
             console.warn('Service Worker 注册失败:', err);
         });
     }
@@ -263,7 +263,7 @@ function loadData() {
     }
 }
 
-function saveData() {
+function saveData(options) {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(mistakes));
     } catch (e) {
@@ -273,7 +273,11 @@ function saveData() {
             console.error('保存数据失败:', e);
         }
     }
-    // 云端自动同步（若已开启并配置）
+    // 云端静默同步（已登录才生效；同步回写本地时用 skipCloud 避免自激）
+    if (!(options && options.skipCloud) && typeof cloudSync !== 'undefined') {
+        cloudSync.schedule();
+    }
+    // 旧的 Gist 自动同步（若仍在使用）
     maybeAutoSync();
 }
 
@@ -917,6 +921,7 @@ async function handleFormSubmit(event) {
     // 换了图或删了图，旧的那张就没用了
     if (previousImageId && previousImageId !== nextImageId) {
         imageStore.del(previousImageId).catch(() => {});
+        if (typeof cloudSync !== 'undefined') cloudSync.deleteRemoteImage(previousImageId);
     }
 
     saveData();
@@ -1257,6 +1262,12 @@ function deleteMistake(id) {
     const target = mistakes.find(m => m.id === id);
     mistakes = mistakes.filter(m => m.id !== id);
     saveData();
+
+    // 云端写墓碑（否则离线设备永远不知道这条被删过）
+    if (typeof cloudSync !== 'undefined') {
+        cloudSync.deleteRemote(id);
+        if (target && target.imageId) cloudSync.deleteRemoteImage(target.imageId);
+    }
 
     // 连同 IndexedDB 里的图片一起删掉，别留孤儿占空间
     if (target && target.imageId && typeof imageStore !== 'undefined') {
@@ -1654,6 +1665,7 @@ function init() {
     loadAchievements();
     loadChallengeStats();
     loadSyncConfig();
+    initCloud();            // 账号与云端同步（异步、失败不影响使用）
     checkAchievements(false);
 
     // 绑定导航
@@ -1823,7 +1835,9 @@ function init() {
     checkDailyReminder();
 
     // 检查是否有示例数据（首次使用时添加一些）
-    if (mistakes.length === 0) {
+    // 已登录云端就不要塞演示数据了：它们是本地样本，混进账号里会污染真实数据
+    const hasCloudSession = typeof account !== 'undefined' && !!account.session();
+    if (mistakes.length === 0 && !hasCloudSession) {
         addSampleData();
         renderHero();
         renderMistakeList();
@@ -1945,7 +1959,11 @@ for (var i = 0; i < 5; i++) {
             createdAt: Date.now() - 15 * 24 * 60 * 60 * 1000
         }
     ];
-    saveData();
+
+    // 打上样本标记：这类演示数据不进云端，拉到真实数据后也会被清掉
+    mistakes.forEach(m => { m.sample = true; m.updatedAt = m.updatedAt || m.createdAt; });
+
+    saveData({ skipCloud: true });
 }
 
 /* ========================================
@@ -5122,7 +5140,205 @@ function ocrFillForm() {
 }
 
 /* ========================================
- * #1 错题云同步（GitHub Gist）
+ * #1a 账号与云端同步（Supabase）
+ *
+ * 本地永远是一等公民：未登录、断网、同步失败都不影响使用，云端只是另一份副本。
+ * ======================================== */
+
+function initCloud() {
+    if (typeof cloudSync === 'undefined' || typeof account === 'undefined') return;
+
+    cloudSync.attach({
+        getMistakes: () => mistakes,
+        setMistakes: (next) => { mistakes = next; },
+        // 同步写回本地时不要再触发一轮同步，否则会自己唤醒自己
+        save: () => saveData({ skipCloud: true }),
+        render: () => refreshCurrentPage(),
+        getState: getCloudState,
+        setState: applyCloudState
+    });
+
+    // 图片兜底：本机没有时去对象存储取（未登录时 cloudSync 内部直接返回 null）
+    if (typeof imageStore !== 'undefined' && imageStore.setRemoteResolver) {
+        imageStore.setRemoteResolver((id) => cloudSync.downloadImage(id));
+    }
+
+    account.init();
+    account.onChange((session) => {
+        renderAccountState();
+        if (session) cloudSync.syncNow('login');
+    });
+    cloudSync.start();
+}
+
+/** 需要跟着账号走、但不是错题的东西；刻意不含 aiConfig / syncConfig（里面有密钥） */
+function getCloudState() {
+    let aiQuestions = [];
+    try { aiQuestions = JSON.parse(localStorage.getItem(AI_QUESTIONS_KEY) || '[]'); } catch (e) { aiQuestions = []; }
+    return {
+        v: 1,
+        activityLog: activityLog || {},
+        userPoints: typeof userPoints === 'number' ? userPoints : 0,
+        practiceRecords: practiceRecords || {},
+        unlockedAchievements: unlockedAchievements || {},
+        challengeStats: challengeStats || {},
+        aiQuestions: aiQuestions
+    };
+}
+
+function applyCloudState(bundle) {
+    if (!bundle || typeof bundle !== 'object') return;
+    try {
+        if (bundle.activityLog && typeof bundle.activityLog === 'object') {
+            activityLog = bundle.activityLog;
+            saveActivityLog();
+        }
+        if (typeof bundle.userPoints === 'number') {
+            userPoints = bundle.userPoints;
+            savePoints();
+        }
+        if (bundle.practiceRecords && typeof bundle.practiceRecords === 'object') {
+            practiceRecords = bundle.practiceRecords;
+            savePracticeRecords();
+        }
+        if (bundle.unlockedAchievements && typeof bundle.unlockedAchievements === 'object') {
+            unlockedAchievements = bundle.unlockedAchievements;
+            saveAchievements();
+        }
+        if (bundle.challengeStats && typeof bundle.challengeStats === 'object') {
+            challengeStats = bundle.challengeStats;
+            saveChallengeStats();
+        }
+        if (Array.isArray(bundle.aiQuestions)) {
+            localStorage.setItem(AI_QUESTIONS_KEY, JSON.stringify(bundle.aiQuestions));
+        }
+    } catch (e) {
+        console.warn('应用云端状态失败:', e);
+    }
+
+    // 把受影响的面板刷新一遍
+    [renderPoints, renderStreak, renderStats, renderPracticeList, updatePracticeStats, renderMistakeList]
+        .forEach(fn => { try { if (typeof fn === 'function') fn(); } catch (e) {} });
+}
+
+/** 账号区块的 HTML（同步弹窗顶部） */
+function renderAccountBlock() {
+    if (typeof account === 'undefined') return '';
+    if (typeof window.cloudConfigured === 'function' && !window.cloudConfigured()) {
+        return `
+            <div class="cloud-account">
+                <div class="cloud-account-title">云端账号</div>
+                <div class="cloud-account-hint">
+                    还没有配置云端。到 supabase.com 建一个免费项目，把 URL 和 anon key 填进
+                    <code>cloud-config.js</code>，并把 <code>supabase/schema.sql</code> 在 SQL Editor 里执行一次即可启用。
+                </div>
+            </div>
+        `;
+    }
+
+    const session = account.session();
+    if (!session) {
+        return `
+            <div class="cloud-account">
+                <div class="cloud-account-title">云端账号</div>
+                <div class="cloud-account-hint">登录后，错题、复习进度和图片会同步到你的账号，换设备或清浏览器数据都不丢。</div>
+                <div class="form-group">
+                    <label class="form-label">邮箱</label>
+                    <input type="email" id="cloudEmail" class="form-input" placeholder="you@example.com" autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">密码（至少 6 位）</label>
+                    <input type="password" id="cloudPassword" class="form-input" placeholder="••••••" autocomplete="current-password">
+                </div>
+                <button class="practice-quiz-btn practice-quiz-btn-primary" onclick="cloudSignIn()"><span class="ico" data-ico="log-in"><svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg></span> 登录</button>
+                <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="cloudSignUp()"><span class="ico" data-ico="user-plus"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg></span> 注册新账号</button>
+                <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="cloudSignInGitHub()"><span class="ico" data-ico="github"><svg viewBox="0 0 24 24"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg></span> 用 GitHub 登录</button>
+            </div>
+        `;
+    }
+
+    const email = session.user.email || '（已登录）';
+    const meta = (typeof cloudSync !== 'undefined' && cloudSync.meta) ? cloudSync.meta() : {};
+    const last = meta.lastSyncAt ? new Date(meta.lastSyncAt).toLocaleString() : '尚未同步';
+    const foreign = meta.ownerId && session.user.id && meta.ownerId !== session.user.id;
+
+    return `
+        <div class="cloud-account">
+            <div class="cloud-account-title">云端账号</div>
+            <div class="cloud-account-user">
+                <span class="ico" data-ico="check-circle"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span>
+                <strong>${escapeHtml(email)}</strong>
+            </div>
+            <div class="cloud-account-hint">上次同步：${escapeHtml(last)} · 云端错题 ${mistakes.length} 条</div>
+            <div class="sync-status" id="cloudStatus">${foreign ? '本机数据属于另一个账号，已仅拉取云端数据' : ''}</div>
+            ${foreign ? '<button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="cloudAdoptLocal()">把本机数据并入当前账号</button>' : ''}
+            <button class="practice-quiz-btn practice-quiz-btn-primary" onclick="cloudSyncNow()"><span class="ico" data-ico="refresh"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></span> 立即同步</button>
+            <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="cloudSignOut()"><span class="ico" data-ico="log-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg></span> 退出登录</button>
+        </div>
+    `;
+}
+
+function renderAccountState() {
+    const slot = $('cloudAccountSlot');
+    if (slot) slot.innerHTML = renderAccountBlock();
+}
+
+function cloudSignIn() {
+    if (typeof account === 'undefined' || !account.configured()) { showToast('尚未配置云端地址'); return; }
+    const email = ($('cloudEmail') && $('cloudEmail').value || '').trim();
+    const password = ($('cloudPassword') && $('cloudPassword').value) || '';
+    if (!email || !password) { showToast('请填写邮箱和密码'); return; }
+    account.signIn(email, password)
+        .then(() => showToast('登录成功，正在同步…'))
+        .catch((e) => showToast('登录失败：' + e.message, 3000));
+}
+
+function cloudSignUp() {
+    if (typeof account === 'undefined' || !account.configured()) { showToast('尚未配置云端地址'); return; }
+    const email = ($('cloudEmail') && $('cloudEmail').value || '').trim();
+    const password = ($('cloudPassword') && $('cloudPassword').value) || '';
+    if (!email || password.length < 6) { showToast('请填写邮箱，密码至少 6 位'); return; }
+    account.signUp(email, password)
+        .then((res) => {
+            if (res && res.needsConfirm) {
+                showToast('注册成功，请到邮箱点确认链接后再登录', 4000);
+            } else {
+                showToast('注册成功，正在同步…');
+            }
+        })
+        .catch((e) => showToast('注册失败：' + e.message, 3000));
+}
+
+function cloudSignInGitHub() {
+    if (typeof account === 'undefined' || !account.configured()) { showToast('尚未配置云端地址'); return; }
+    account.signInWithGitHub();
+}
+
+function cloudSignOut() {
+    if (typeof account === 'undefined') return;
+    account.signOut().then(() => showToast('已退出登录（本机数据保留）'));
+}
+
+async function cloudSyncNow() {
+    if (typeof cloudSync === 'undefined' || !cloudSync.enabled()) { showToast('请先登录'); return; }
+    const el = $('cloudStatus');
+    if (el) el.textContent = '正在同步…';
+    const result = await cloudSync.syncNow('manual');
+    renderAccountState();
+    if (result && result.error) showToast('同步失败：' + result.error, 3000);
+    else showToast('同步完成');
+}
+
+async function cloudAdoptLocal() {
+    if (typeof cloudSync === 'undefined') return;
+    if (!confirm('把本机数据并入当前账号？两份数据会按更新时间合并，不会直接覆盖。')) return;
+    await cloudSync.adoptLocalData();
+    showToast('已并入当前账号');
+    switchPage('pageHome');
+}
+
+/* ========================================
+ * #1 错题云同步（GitHub Gist）—— 保留作旧方式
  * ======================================== */
 const SYNC_KEY = 'code_sync_config_v1';
 const SYNC_FILENAME = 'code-mistake-book-backup.json';
@@ -5152,6 +5368,9 @@ function closeSyncModal() {
 function renderSyncBody(statusHtml = '') {
     const lastText = syncConfig.lastSyncAt ? '上次同步：' + new Date(syncConfig.lastSyncAt).toLocaleString() : '尚未同步过';
     $('syncBody').innerHTML = `
+        <div id="cloudAccountSlot">${renderAccountBlock()}</div>
+        <details class="legacy-sync">
+        <summary>旧方式：GitHub Gist 备份（可选）</summary>
         <div class="ai-settings-tip" style="font-size:12px;color:var(--text-secondary);line-height:1.6">
             <span class="ico" data-ico="cloud"><svg viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg></span> 通过 GitHub Gist 把错题数据同步到云端，换设备也能恢复；支持多设备合并。
             Token 仅保存在本机 localStorage 中，不会上传给任何第三方。
@@ -5174,6 +5393,7 @@ function renderSyncBody(statusHtml = '') {
         <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="saveSyncInputs(); syncPull(false)"><span class="ico" data-ico="download"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg></span> 云端下载（合并到本地）</button>
         <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="saveSyncInputs(); syncPull(true)"><span class="ico" data-ico="recycle"><svg viewBox="0 0 24 24"><path d="M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5"/><path d="M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12"/><path d="m14 16-3 3 3 3"/><path d="M8.293 13.596 7.196 9.5 3.1 10.598"/><path d="m9.344 5.811 1.093-1.892A1.83 1.83 0 0 1 11.985 3a1.784 1.784 0 0 1 1.546.888l3.943 6.843"/><path d="m13.378 9.633 4.096 1.098 1.097-4.096"/></svg></span>️ 云端覆盖本地</button>
         <div style="font-size:12px;color:var(--text-secondary)">${lastText}</div>
+        </details>
     `;
 }
 

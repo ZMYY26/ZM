@@ -17,12 +17,12 @@
     <!-- 代码高亮：已本地化到 vendor/，离线可用；6 种语言都在 common 构建里，
          原先额外加载的 languages/*.min.js 是冗余的，已移除。
          integrity 与文件内容绑定，替换文件时需同步更新（见 scripts/make-icons.mjs 说明）。 -->
-    <link rel="stylesheet" href="vendor/highlight/atom-one-light.min.css?v=6"
+    <link rel="stylesheet" href="vendor/highlight/atom-one-light.min.css?v=7"
           integrity="sha384-w6Ujm1VWa9HYFqGc89oAPn/DWDi2gUamjNrq9DRvEYm2X3ClItg9Y9xs1ViVo5b5">
-    <script src="vendor/highlight/highlight.min.js?v=6" defer
+    <script src="vendor/highlight/highlight.min.js?v=7" defer
             integrity="sha384-F/bZzf7p3Joyp5psL90p/p89AZJsndkSoGwRpXcZhleCWhd8SnRuoYo4d0yirjJp"></script>
 
-    <link rel="stylesheet" href="style.css?v=6">
+    <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 <!-- 环境氛围光斑（玻璃拟态背景） -->
@@ -580,9 +580,12 @@
 <!-- 分享卡片渲染容器（隐藏用于下载） -->
 <div style="position:fixed;left:-9999px;top:0" id="shareCanvasHolder"></div>
 
-<script src="practice-data.js?v=6" defer></script>
-<script src="knowledge-data.js?v=6" defer></script>
-<script src="image-store.js?v=6" defer></script>
-<script src="app.js?v=6" defer></script>
+<script src="cloud-config.js?v=7" defer></script>
+<script src="practice-data.js?v=7" defer></script>
+<script src="knowledge-data.js?v=7" defer></script>
+<script src="image-store.js?v=7" defer></script>
+<script src="account.js?v=7" defer></script>
+<script src="app.js?v=7" defer></script>
+<script src="cloud-sync.js?v=7" defer></script>
 </body>
 </html>

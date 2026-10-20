@@ -1169,6 +1169,49 @@ a .ico,
     border: 1px solid var(--border);
 }
 
+/* ========== 云端账号区块 ========== */
+.cloud-account {
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.cloud-account-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.cloud-account-hint {
+    margin-bottom: 10px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.cloud-account-hint code {
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: var(--surface);
+    font-size: 11px;
+}
+
+.cloud-account-user {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    font-size: 14px;
+}
+
+.legacy-sync { margin-top: 18px; }
+
+.legacy-sync > summary {
+    padding: 6px 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+}
 /* 图片只存在本机 IndexedDB，云端同步不带图片；换设备查看时用这个占位 */
 .image-missing {
     display: block;
