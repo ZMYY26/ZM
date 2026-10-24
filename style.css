@@ -4115,3 +4115,92 @@ a .ico,
         opacity: 0.2;
     }
 }
+/* ========== 首屏「今日任务」 ========== */
+/* 存在的意义：首屏第一屏就回答"我现在该做什么"，而不是先展示一堆看板 */
+.today-task-card {
+    margin-bottom: 14px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #0071e3, #42a1ff);
+    color: #fff;
+    box-shadow: 0 10px 24px rgba(0, 113, 227, 0.28);
+}
+
+.today-task-card.done {
+    background: var(--card);
+    color: var(--text);
+    box-shadow: var(--shadow);
+}
+
+.today-head { margin-bottom: 10px; }
+
+.today-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.today-title b {
+    margin: 0 2px;
+    font-size: 22px;
+}
+
+.today-sub {
+    margin-top: 4px;
+    font-size: 12px;
+    opacity: 0.85;
+}
+
+.today-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.today-item {
+    padding: 9px 12px;
+    border: none;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    font-size: 13px;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.today-item:active { background: rgba(255, 255, 255, 0.28); }
+
+.today-cta {
+    width: 100%;
+    padding: 11px;
+    border: none;
+    border-radius: 12px;
+    background: #fff;
+    color: #0071e3;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.today-task-card.done .today-cta {
+    background: var(--primary);
+    color: #fff;
+}
+
+/* 散文式回答（面试/考证这类文本内容）：换行渲染，不横向滚动 */
+.answer-text {
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.75;
+    white-space: pre-wrap;
+    word-break: break-word;
+}

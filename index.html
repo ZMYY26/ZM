@@ -3,26 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>代码错题集 - 编程学习好帮手</title>
+    <title>面试复盘 · 下次面试不再栽在同一处</title>
 
     <!-- PWA：可安装、独立窗口、iOS 主屏图标 -->
     <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="assets/icon-192.png">
     <meta name="theme-color" content="#f5f5f7">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="错题集">
+    <meta name="apple-mobile-web-app-title" content="复盘">
     <link rel="apple-touch-icon" href="assets/icon-180.png">
 
     <!-- 代码高亮：已本地化到 vendor/，离线可用；6 种语言都在 common 构建里，
          原先额外加载的 languages/*.min.js 是冗余的，已移除。
          integrity 与文件内容绑定，替换文件时需同步更新（见 scripts/make-icons.mjs 说明）。 -->
-    <link rel="stylesheet" href="vendor/highlight/atom-one-light.min.css?v=7"
+    <link rel="stylesheet" href="vendor/highlight/atom-one-light.min.css?v=8"
           integrity="sha384-w6Ujm1VWa9HYFqGc89oAPn/DWDi2gUamjNrq9DRvEYm2X3ClItg9Y9xs1ViVo5b5">
-    <script src="vendor/highlight/highlight.min.js?v=7" defer
+    <script src="vendor/highlight/highlight.min.js?v=8" defer
             integrity="sha384-F/bZzf7p3Joyp5psL90p/p89AZJsndkSoGwRpXcZhleCWhd8SnRuoYo4d0yirjJp"></script>
 
-    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
 <!-- 环境氛围光斑（玻璃拟态背景） -->
@@ -45,6 +46,8 @@
 
     <!-- 首页：错题列表 -->
     <section class="page active" id="pageHome">
+        <!-- 今日任务：首屏第一屏就回答"我现在该做什么" -->
+        <div class="today-task" id="todayTask"></div>
         <div class="hero-card" id="heroCard">
             <div class="hero-greeting">
                 <div class="hero-hi" id="heroGreeting">你好</div>
@@ -58,22 +61,22 @@
                 </svg>
                 <div class="hero-ring-center">
                     <span class="hero-ring-num" id="heroRingNum">0%</span>
-                    <span class="hero-ring-label">掌握率</span>
+                    <span class="hero-ring-label" data-field="ringLabel">掌握率</span>
                 </div>
             </div>
         </div>
         <div class="stats-bar">
             <div class="stat-item">
                 <span class="stat-num" id="totalCount">0</span>
-                <span class="stat-label">总错题</span>
+                <span class="stat-label" data-field="statTotal">总错题</span>
             </div>
             <div class="stat-item">
                 <span class="stat-num" id="reviewCount">0</span>
-                <span class="stat-label">待复习</span>
+                <span class="stat-label" data-field="statPending">待复习</span>
             </div>
             <div class="stat-item">
                 <span class="stat-num" id="masteredCount">0</span>
-                <span class="stat-label">已掌握</span>
+                <span class="stat-label" data-field="statMastered">已掌握</span>
             </div>
         </div>
         <div class="points-card" id="pointsCard"></div>
@@ -163,12 +166,12 @@
     <section class="page" id="pageEdit">
         <form id="mistakeForm" class="edit-form">
             <div class="form-group">
-                <label class="form-label">题目标题 *</label>
+                <label class="form-label" data-field="fTitle">题目标题 *</label>
                 <input type="text" id="inputTitle" class="form-input" placeholder="例如：快速排序边界条件错误" required>
             </div>
 
             <div class="form-group">
-                <label class="form-label">编程语言 *</label>
+                <label class="form-label" data-field="fLang">编程语言 *</label>
                 <select id="inputLang" class="form-input" required>
                     <option value="javascript">JavaScript</option>
                     <option value="python">Python</option>
@@ -179,17 +182,17 @@
             </div>
 
             <div class="form-group">
-                <label class="form-label">题目描述</label>
+                <label class="form-label" data-field="fDesc">题目描述</label>
                 <textarea id="inputDesc" class="form-input form-textarea" rows="3" placeholder="简单描述一下这道题目..."></textarea>
             </div>
 
             <div class="form-group">
-                <label class="form-label">错误代码 *</label>
+                <label class="form-label" data-field="fWrong">错误代码 *</label>
                 <textarea id="inputWrongCode" class="form-input form-textarea code-input" rows="6" placeholder="粘贴你的错误代码..." required></textarea>
             </div>
 
             <div class="form-group">
-                <label class="form-label">正确代码</label>
+                <label class="form-label" data-field="fRight">正确代码</label>
                 <textarea id="inputRightCode" class="form-input form-textarea code-input" rows="6" placeholder="粘贴正确的代码实现..."></textarea>
             </div>
 
@@ -211,7 +214,7 @@
 
             <div class="form-group">
                 <div class="form-label-row">
-                    <label class="form-label">考点标签（用逗号分隔多个）</label>
+                    <label class="form-label" data-field="fTags">考点标签（用逗号分隔多个）</label>
                     <button type="button" class="ai-tag-btn" id="aiTagBtn"><span class="ico" data-ico="bot"><svg viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></span> AI 智能打标</button>
                 </div>
                 <input type="text" id="inputTags" class="form-input" placeholder="例如: 快速排序, 递归, 分治算法">
@@ -219,12 +222,12 @@
             </div>
 
             <div class="form-group">
-                <label class="form-label">错误分析 / 笔记</label>
+                <label class="form-label" data-field="fNote">错误分析 / 笔记</label>
                 <textarea id="inputNote" class="form-input form-textarea" rows="3" placeholder="记录一下为什么会错，下次要注意什么..."></textarea>
             </div>
 
             <div class="form-group">
-                <label class="form-label">来源</label>
+                <label class="form-label" data-field="fSource">来源</label>
                 <select id="inputSource" class="form-input">
                     <option value="二级C">计算机二级</option>
                     <option value="蓝桥杯">蓝桥杯</option>
@@ -580,12 +583,13 @@
 <!-- 分享卡片渲染容器（隐藏用于下载） -->
 <div style="position:fixed;left:-9999px;top:0" id="shareCanvasHolder"></div>
 
-<script src="cloud-config.js?v=7" defer></script>
-<script src="practice-data.js?v=7" defer></script>
-<script src="knowledge-data.js?v=7" defer></script>
-<script src="image-store.js?v=7" defer></script>
-<script src="account.js?v=7" defer></script>
-<script src="app.js?v=7" defer></script>
-<script src="cloud-sync.js?v=7" defer></script>
+<script src="product.js?v=8" defer></script>
+<script src="cloud-config.js?v=8" defer></script>
+<script src="practice-data.js?v=8" defer></script>
+<script src="knowledge-data.js?v=8" defer></script>
+<script src="image-store.js?v=8" defer></script>
+<script src="account.js?v=8" defer></script>
+<script src="app.js?v=8" defer></script>
+<script src="cloud-sync.js?v=8" defer></script>
 </body>
 </html>

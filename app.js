@@ -6,6 +6,10 @@
 const STORAGE_KEY = 'code_mistake_book_v1';
 const REVIEW_INTERVALS = [1, 2, 4, 7, 15, 30]; // 艾宾浩斯复习间隔（天）
 
+// 产品变体层：A/B 两个版本只有 product.js 不同，引擎代码完全一致
+const P = window.PRODUCT || {};
+const FEATURES = P.features || {};
+
 let mistakes = [];
 let currentPage = 'pageHome';
 let editingId = null;
@@ -136,6 +140,9 @@ function formatDate(timestamp) {
 }
 
 function getLangName(code) {
+    const opts = P.langOptions || [];
+    const hit = opts.find(o => o.v === code);
+    if (hit) return hit.t;
     const map = {
         javascript: 'JavaScript',
         python: 'Python',
@@ -144,6 +151,23 @@ function getLangName(code) {
         c: 'C语言'
     };
     return map[code] || code;
+}
+
+/** 把一条记录整理成产品变体层（product.js）需要的字段 */
+function normalizeForAI(m) {
+    const rec = m || {};
+    return {
+        title: (rec.title || '').trim() || '（无标题）',
+        lang: rec.lang || 'text',
+        langName: getLangName(rec.lang),
+        tags: (rec.tags || []).join('、') || '综合',
+        tagList: rec.tags || [],
+        desc: (rec.desc || '').trim() || '（未填写）',
+        wrongCode: (rec.wrongCode || '').trim() || '（未填写）',
+        rightCode: (rec.rightCode || '').trim() || '（未填写）',
+        note: (rec.note || '').trim() || '（未填写）',
+        count: (typeof aiConfig !== 'undefined' && aiConfig && aiConfig.count) || 3,
+    };
 }
 
 function escapeHtml(text) {
@@ -390,24 +414,25 @@ function switchPage(pageId) {
 }
 
 function updateHeader(pageId) {
+    const t = P.titles || {};
     const titles = {
-        pageHome: '代码错题集',
-        pageCategory: '分类浏览',
-        pageReview: '复习计划',
-        pageEdit: editingId ? '编辑错题' : '添加错题',
-        pageDetail: '错题详情',
-        pageKnowledge: '知识库',
-        pagePractice: '错题练习',
-        pageStats: '学习统计'
+        pageHome: t.pageHome || '首页',
+        pageCategory: t.pageCategory || '分类',
+        pageReview: t.pageReview || '复习',
+        pageEdit: editingId ? (t.pageEditExisting || '编辑') : (t.pageEdit || '新增'),
+        pageDetail: t.pageDetail || '详情',
+        pageKnowledge: t.pageKnowledge || '知识库',
+        pagePractice: t.pagePractice || '练习',
+        pageStats: t.pageStats || '统计'
     };
 
-    $('pageTitle').textContent = titles[pageId] || '代码错题集';
+    $('pageTitle').textContent = titles[pageId] || (P.brand || '首页');
     $('backBtn').style.display = (pageId === 'pageEdit' || pageId === 'pageDetail') ? 'inline-flex' : 'none';
 }
 
 function refreshCurrentPage() {
     switch (currentPage) {
-        case 'pageHome': renderHero(); renderMistakeList(); renderStreak(); renderPoints(); renderChallengeCard(); break;
+        case 'pageHome': renderTodayTask(); renderHero(); renderMistakeList(); renderStreak(); renderPoints(); renderChallengeCard(); break;
         case 'pageCategory': renderCategory(); break;
         case 'pageReview': renderReview(); break;
         case 'pageKnowledge': renderKnowledge(); break;
@@ -450,8 +475,8 @@ function renderMistakeList() {
         list.innerHTML = `
             <div class="empty-state">
                 <div class="empty-icon"><span class="ico" data-ico="pencil-line"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span></div>
-                <p class="empty-text">${mistakes.length === 0 ? '还没有错题记录' : '没有找到匹配的错题'}</p>
-                <p class="empty-hint">${mistakes.length === 0 ? '点击下方 + 按钮添加你的第一道错题' : '试试调整筛选条件'}</p>
+                <p class="empty-text">${mistakes.length === 0 ? ((P.empty && P.empty.title) || '还没有记录') : '没有找到匹配的记录'}</p>
+                <p class="empty-hint">${mistakes.length === 0 ? ((P.empty && P.empty.hint) || '点击下方 + 按钮添加第一条') : '试试调整筛选条件'}</p>
             </div>
         `;
         return;
@@ -491,10 +516,11 @@ function renderMistakeList() {
 }
 
 function getStatusText(mistake, reviewStatus) {
-    if (mistake.status === 'mastered') return '已掌握';
-    if (reviewStatus === 'pending') return '待复习';
-    if (reviewStatus === 'tomorrow') return '明日复习';
-    return '复习中';
+    const S = P.status || {};
+    if (mistake.status === 'mastered') return S.mastered || '已掌握';
+    if (reviewStatus === 'pending') return S.pending || '待复习';
+    if (reviewStatus === 'tomorrow') return S.tomorrow || '明日复习';
+    return S.reviewing || '复习中';
 }
 
 function getStatusClass(mistake, reviewStatus) {
@@ -971,7 +997,7 @@ function renderDetail(m) {
 
         ${m.desc ? `
             <div class="detail-section">
-                <div class="detail-section-title">题目描述</div>
+                <div class="detail-section-title">${(P.detail && P.detail.desc) || '题目描述'}</div>
                 <div class="detail-desc">${escapeHtml(m.desc)}</div>
             </div>
         ` : ''}
@@ -987,23 +1013,27 @@ function renderDetail(m) {
 
         ${m.wrongCode ? `
             <div class="detail-section">
-                <div class="detail-section-title"><span class="ico" data-ico="x-circle"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg></span> 错误代码</div>
+                <div class="detail-section-title"><span class="ico" data-ico="x-circle"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg></span> ${(P.detail && P.detail.wrong) || '错误代码'}</div>
                 <div class="code-block">
-                    <div class="code-block-header wrong">错误代码</div>
-                    <pre><code class="hljs language-${m.lang}">${wrongCodeHtml}</code></pre>
+                    <div class="code-block-header wrong">${(P.detail && P.detail.wrong) || '错误代码'}</div>
+                    ${(P.features && P.features.answersAsProse)
+                        ? '<div class="answer-text">' + escapeHtml(m.wrongCode) + '</div>'
+                        : '<pre><code class="hljs language-' + m.lang + '">' + wrongCodeHtml + '</code></pre>'}
                 </div>
             </div>
         ` : ''}
 
         ${m.rightCode ? `
             <div class="detail-section">
-                <div class="detail-section-title"><span class="ico" data-ico="check-circle"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span> 正确代码</div>
+                <div class="detail-section-title"><span class="ico" data-ico="check-circle"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span> ${(P.detail && P.detail.right) || '正确代码'}</div>
                 <div class="code-block">
                     <div class="code-block-header right">
-                        <span>正确实现</span>
+                        <span>${(P.detail && P.detail.right) || '正确实现'}</span>
                         ${isRunnableLang(m.lang) ? `<button class="run-btn" id="runBtn-${m.id}" onclick="runMistakeCode('${m.id}')">▶ 运行</button>` : ''}
                     </div>
-                    <pre><code class="hljs language-${m.lang}">${rightCodeHtml}</code></pre>
+                    ${(P.features && P.features.answersAsProse)
+                        ? '<div class="answer-text">' + escapeHtml(m.rightCode) + '</div>'
+                        : '<pre><code class="hljs language-' + m.lang + '">' + rightCodeHtml + '</code></pre>'}
                 </div>
                 ${isRunnableLang(m.lang) ? `<div class="code-output" id="output-${m.id}" style="display:none"></div>` : ''}
             </div>
@@ -1016,10 +1046,10 @@ function renderDetail(m) {
             </div>
         ` : ''}
 
-        <button class="ai-gen-btn" onclick="openAIModal('${m.id}')"><span class="ico" data-ico="bot"><svg viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></span> AI 举一反三</button>
-        <button class="ai-gen-btn" style="background:var(--primary)" onclick="openAIDiagnosis('${m.id}')"><span class="ico" data-ico="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span> AI 诊断</button>
-        <button class="ai-gen-btn" style="background:var(--primary)" onclick="openAIChat('${m.id}')"><span class="ico" data-ico="message-circle"><svg viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></span> AI 对话</button>
-        <button class="ai-gen-btn" style="background:var(--primary)" onclick="openShareModal('${m.id}')"><span class="ico" data-ico="upload"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg></span> 分享</button>
+        <button class="ai-gen-btn" onclick="openAIModal('${m.id}')"><span class="ico" data-ico="bot"><svg viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></span> ${(P.actions && P.actions.variant) || 'AI 举一反三'}</button>
+        <button class="ai-gen-btn" style="background:var(--primary)" onclick="openAIDiagnosis('${m.id}')"><span class="ico" data-ico="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span> ${(P.actions && P.actions.diagnosis) || 'AI 诊断'}</button>
+        <button class="ai-gen-btn" style="background:var(--primary)" onclick="openAIChat('${m.id}')"><span class="ico" data-ico="message-circle"><svg viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></span> ${(P.actions && P.actions.chat) || 'AI 对话'}</button>
+        <button class="ai-gen-btn" style="background:var(--primary)" onclick="openShareModal('${m.id}')"><span class="ico" data-ico="upload"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg></span> ${(P.actions && P.actions.share) || '分享'}</button>
         <div class="detail-footer">
             ${m.status !== 'mastered' ? `
                 <button class="action-btn success" onclick="markMastered('${m.id}')"><span class="ico" data-ico="check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span> 已掌握</button>
@@ -1648,8 +1678,108 @@ function bindFilterEvents() {
     $('filterStatus').addEventListener('change', renderMistakeList);
 }
 
+/* ========================================
+ * 产品变体层应用（A/B 两版差异全部来自 product.js）
+ * ======================================== */
+
+/** 首屏 chrome：标题、导航、表单文案、下拉选项，按 product.js 覆盖 */
+function applyProductChrome() {
+    if (!P || !P.brand) return;
+    document.title = P.title || P.brand;
+
+    document.querySelectorAll('.nav-item').forEach((btn) => {
+        const label = (P.nav || {})[btn.dataset.page];
+        const span = btn.querySelector('.nav-label');
+        if (label && span) span.textContent = label;
+    });
+
+    const fields = P.fields || {};
+    document.querySelectorAll('[data-field]').forEach((el) => {
+        const text = fields[el.dataset.field];
+        if (text) el.textContent = text;
+    });
+
+    const ph = P.placeholders || {};
+    Object.keys(ph).forEach((id) => {
+        const el = $(id);
+        if (el) el.placeholder = ph[id];
+    });
+
+    const langOpts = P.langOptions || [];
+    if (langOpts.length) {
+        const filterLang = $('filterLang');
+        if (filterLang) {
+            filterLang.innerHTML = `<option value="">${escapeHtml(P.allLabel || '全部')}</option>`
+                + langOpts.map(o => `<option value="${escapeHtml(o.v)}">${escapeHtml(o.t)}</option>`).join('');
+        }
+        const inputLang = $('inputLang');
+        if (inputLang) {
+            inputLang.innerHTML = langOpts.map(o => `<option value="${escapeHtml(o.v)}">${escapeHtml(o.t)}</option>`).join('');
+        }
+    }
+
+    if (Array.isArray(P.sources) && P.sources.length) {
+        const src = $('inputSource');
+        if (src) {
+            const current = src.value;
+            src.innerHTML = P.sources.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+            if (P.sources.indexOf(current) >= 0) src.value = current;
+        }
+    }
+
+    // 游戏化面板：按变体开关决定是否展示
+    if (FEATURES.gamification === false) {
+        ['pointsCard', 'streakBar', 'challengeCard'].forEach((id) => {
+            const el = $(id);
+            if (el) el.style.display = 'none';
+        });
+    }
+}
+
+/** 示例数据来自 product.js，而不是硬编码在引擎里 */
+function seedProductSample() {
+    const seed = Array.isArray(P.seed) ? P.seed : [];
+    if (!seed.length) { addSampleData(); return; }
+    mistakes = seed.map(item => Object.assign({}, item, { id: generateId(), sample: true }));
+    saveData({ skipCloud: true });
+}
+
+/** 首屏"今日任务"：第一屏就回答"我现在该做什么" */
+function renderTodayTask() {
+    const box = $('todayTask');
+    if (!box) return;
+    const cfg = P.today || {};
+    if (!mistakes.length) { box.innerHTML = ''; return; }
+
+    const pending = mistakes.filter(m => getReviewStatus(m) === 'pending' && m.status !== 'mastered');
+
+    if (!pending.length) {
+        box.innerHTML = `
+            <div class="today-task-card done">
+                <div class="today-title"><span class="ico" data-ico="check-circle"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span> ${escapeHtml(cfg.allDone || '今天的清单清空了')}</div>
+                <button class="today-cta" onclick="switchPage('pagePractice')">${escapeHtml(cfg.cta || '开始练习')}</button>
+            </div>`;
+        return;
+    }
+
+    box.innerHTML = `
+        <div class="today-task-card">
+            <div class="today-head">
+                <div class="today-title">${escapeHtml(cfg.title || '今天要处理')} <b>${pending.length}</b> ${escapeHtml(cfg.unit || '条')}</div>
+                <div class="today-sub">${escapeHtml(cfg.ctaHint || '')}</div>
+            </div>
+            <div class="today-list">
+                ${pending.slice(0, 3).map(m => `<button class="today-item" onclick="viewMistake('${m.id}')">${escapeHtml((m.title || '').slice(0, 30))}</button>`).join('')}
+            </div>
+            <button class="today-cta" onclick="switchPage('pagePractice')">${escapeHtml(cfg.cta || '开始')}</button>
+        </div>`;
+}
+
 // ========== 初始化 ==========
 function init() {
+    // 先套用产品变体（标题 / 导航 / 表单文案）；下面所有逻辑都与变体无关
+    applyProductChrome();
+
     // 加载数据
     loadData();
     // 老数据里的内联 base64 图片搬到 IndexedDB（异步，不阻塞首屏）
@@ -1838,7 +1968,8 @@ function init() {
     // 已登录云端就不要塞演示数据了：它们是本地样本，混进账号里会污染真实数据
     const hasCloudSession = typeof account !== 'undefined' && !!account.session();
     if (mistakes.length === 0 && !hasCloudSession) {
-        addSampleData();
+        seedProductSample();
+        renderTodayTask();
         renderHero();
         renderMistakeList();
         updateTagFilter();
@@ -2106,10 +2237,11 @@ function renderHero() {
     const pct = total ? Math.round(mastered / total * 100) : 0;
 
     let sub;
-    if (!total) sub = '记录第一道错题，开始成长';
-    else if (pct === 100) sub = '全部掌握，太棒了！';
-    else if (mastered > 0) sub = `已掌握 ${mastered}/${total} 道，继续加油`;
-    else sub = `${total} 道错题等着你逐一攻克`;
+    const H = P.hero || {};
+    if (!total) sub = H.empty || '记录第一条，开始';
+    else if (pct === 100) sub = H.allMastered || '全部掌握';
+    else if (mastered > 0) sub = (typeof H.some === 'function' ? H.some(mastered, total) : `已掌握 ${mastered}/${total} 条`);
+    else sub = (typeof H.none === 'function' ? H.none(total) : `${total} 条待处理`);
 
     $('heroGreeting').textContent = greet;
     $('heroDate').textContent = dateStr;
@@ -3035,6 +3167,9 @@ function handleSaveAISettings() {
 
 // ========== 提示词构造 ==========
 function buildAIPrompt(m) {
+    // 产品变体层接管后，下面的通用兜底不再执行
+    if (P.ai && typeof P.ai.variantPrompt === 'function') return P.ai.variantPrompt(normalizeForAI(m));
+
     const langName = getLangName(m.lang);
     const tags = (m.tags || []).join('、') || '综合';
     const count = aiConfig.count || 3;
@@ -3166,7 +3301,7 @@ async function callLLM(prompt) {
     const body = {
         model: aiConfig.model,
         messages: [
-            { role: 'system', content: '你是一位严谨的编程教学专家，只输出严格 JSON。' },
+            { role: 'system', content: (P.ai && P.ai.systemVariant) || '你是一位严谨的教学专家，只输出严格 JSON。' },
             { role: 'user', content: prompt }
         ],
         temperature: 0.7,
@@ -3519,6 +3654,8 @@ function openAIDiagnosis(mistakeId) {
 }
 
 function buildDiagnosisPrompt(m) {
+    if (P.ai && typeof P.ai.diagnosisPrompt === 'function') return P.ai.diagnosisPrompt(normalizeForAI(m));
+
     const langName = getLangName(m.lang);
     const tags = (m.tags || []).join('、') || '综合';
     const wrongCode = (m.wrongCode || '').trim() || '//（未提供错误代码）';
@@ -5563,7 +5700,7 @@ async function aiAutoTag() {
   "tags": ["考点标签1", "考点标签2", "考点标签3"],  // 3-5 个，简短中文标签
   "title": "简洁题目标题（仅当原标题为空时返回，否则返回空字符串）",
   "reason": "一句话错误原因",  // 20 字内
-  "category": "数据结构/算法/操作系统/计算机网络/数据库/语言基础 之一"
+  "category": "${(P.tagSuggestions || ['综合']).join('/')} 之一"
 }
 已有标签（避免重复，可用同义补充）：${existingTags.join('、') || '无'}
 现有标题：${title || '（空）'}
@@ -5572,7 +5709,7 @@ async function aiAutoTag() {
 ${wrongCode || '（无）'}`;
 
         const text = await callLLMChat([
-            { role: 'system', content: '你是编程教学专家，擅长为错题打标签、归纳错误原因。只输出合法 JSON。' },
+            { role: 'system', content: (P.ai && P.ai.systemAutotag) || '你是教学专家，擅长为记录打标签、归纳原因。只输出合法 JSON。' },
             { role: 'user', content: prompt }
         ]);
 
@@ -5707,7 +5844,7 @@ async function openWeeklyReport() {
             const prompt = '学生本周学习数据如下（JSON）：\n' + JSON.stringify(weeklyStats) +
                 '\n\n请写一份鼓励性的编程学习周报，使用 Markdown，250 字以内，包含三段：## <span class="ico" data-ico="dumbbell"><svg viewBox="0 0 24 24"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/></svg></span> 本周表现、## <span class="ico" data-ico="trending-down"><svg viewBox="0 0 24 24"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg></span> 薄弱分析、## <span class="ico" data-ico="target"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span> 下周建议';
             const text = await callLLMChat([
-                { role: 'system', content: '你是严谨又温暖的编程学习导师，回复使用简体中文 Markdown，控制在 250 字以内。' },
+                { role: 'system', content: (P.ai && P.ai.systemChat) || '你是严谨又温暖的学习导师，回复使用简体中文 Markdown，控制在 250 字以内。' },
                 { role: 'user', content: prompt }
             ]);
             weeklyAIText = text;

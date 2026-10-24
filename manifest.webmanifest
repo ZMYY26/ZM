@@ -1,8 +1,8 @@
 {
     "id": "./",
-    "name": "代码错题集 - 编程学习好帮手",
-    "short_name": "错题集",
-    "description": "记录编程错题、AI 诊断、举一反三、复习追踪的编程学习工具",
+    "name": "面试复盘 · Interview Loop",
+    "short_name": "面试复盘",
+    "description": "把面试里被问倒的问题变成可复习的追问链：AI 拆解面试官追问、按遗忘曲线安排复盘、生成能力图谱。",
     "start_url": "./index.html",
     "scope": "./",
     "display": "standalone",

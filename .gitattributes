@@ -1,0 +1,7 @@
+# 第三方静态资源按字节原样保存。
+# vendor/ 里的文件带 SRI（integrity="sha384-..."），那是按文件字节算的哈希；
+# 一旦 Git 在检出时把 LF 转成 CRLF，哈希就变了，浏览器会直接拒绝加载脚本。
+vendor/** -text
+*.png binary
+*.jpg binary
+*.zip binary
