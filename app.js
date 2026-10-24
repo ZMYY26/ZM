@@ -270,7 +270,7 @@ function renderMarkdown(text) {
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         // 仅 HTTPS 或 localhost 生效
-        navigator.serviceWorker.register('./sw.js?v=9').catch((err) => {
+        navigator.serviceWorker.register('./sw.js?v=10').catch((err) => {
             console.warn('Service Worker 注册失败:', err);
         });
     }
@@ -3129,14 +3129,11 @@ function openAIModal(mistakeId) {
     aiGeneratedQuestions = [];
     aiAnswerState = {};
 
-    $('aiModalTitle').innerHTML = '<span class="ico" data-ico="bot"><svg viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></span> AI 举一反三 · ' + escapeHtml((m.title || '').slice(0, 16));
+    $('aiModalTitle').innerHTML = '<span class="ico" data-ico="bot"><svg viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></span> ' + ((P.actions && P.actions.variant) || 'AI 举一反三') + ' · ' + escapeHtml((m.title || '').slice(0, 16));
     $('aiModal').style.display = 'flex';
 
-    if (!aiConfig.apiKey || !aiConfig.baseURL || !aiConfig.model) {
-        renderAIBody({ type: 'no-config' });
-    } else {
-        generateAIQuestions();
-    }
+    // 未配置 API Key 时不拦截：用内置示例把流程走完（结果会标注"示例"）
+    generateAIQuestions();
 }
 
 function closeAIModal() {
@@ -3310,7 +3307,33 @@ ${rightCode}
 }
 
 // ========== 调用 LLM ==========
-async function callLLM(prompt) {
+/** 是否已经配置了真实的 LLM 接口 */
+function llmConfigured() {
+    return !!(aiConfig && aiConfig.apiKey && aiConfig.baseURL && aiConfig.model);
+}
+
+/** 没配置 Key 时，用一个明显的标注告诉用户"这是示例" */
+function markDemoResult() {
+    if (llmConfigured()) return;
+    const body = $('aiBody');
+    if (!body || body.querySelector('.demo-banner')) return;
+    const banner = document.createElement('div');
+    banner.className = 'demo-banner';
+    banner.innerHTML = '<b>示例结果</b> 这是内置的演示内容，用来让你先看完整体流程。在「设置 → AI 配置」里填上自己的 API Key，就会按你的记录真实生成了。';
+    body.insertBefore(banner, body.firstChild);
+}
+
+async function callLLM(prompt, kind) {
+    // 没配置接口时不报错，改用 product.js 里的示例结果把流程走完
+    if (!llmConfigured()) {
+        const demo = P.demo && P.demo[kind];
+        if (demo) {
+            await new Promise(function (r) { setTimeout(r, 700); });
+            return typeof demo === 'function' ? demo() : demo;
+        }
+        throw new Error('还没有配置 AI 接口：设置 → AI 配置里填 Base URL / Key / 模型');
+    }
+
     const url = aiConfig.baseURL.replace(/\/+$/, '') + '/chat/completions';
     const body = {
         model: aiConfig.model,
@@ -3399,7 +3422,7 @@ async function generateAIQuestions() {
 
     try {
         const prompt = buildAIPrompt(aiCurrentMistake);
-        const [content] = await Promise.all([callLLM(prompt), minLoading]);
+        const [content] = await Promise.all([callLLM(prompt, 'variant'), minLoading]);
         const questions = parseAIQuestions(content);
 
         if (questions.length === 0) throw new Error('未生成任何题目');
@@ -3407,6 +3430,7 @@ async function generateAIQuestions() {
         aiGeneratedQuestions = questions;
         questions.forEach(q => { aiAnswerState[q.id] = { selected: -1, answered: false }; });
         renderAIBody({ type: 'success', questions });
+        markDemoResult();
     } catch (e) {
         await minLoading;
         console.error('AI 出题失败:', e);
@@ -3657,14 +3681,11 @@ function openAIDiagnosis(mistakeId) {
     aiDiagnoseMistake = m;
     aiDiagResult = null;
 
-    $('aiModalTitle').innerHTML = '<span class="ico" data-ico="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span> AI 诊断 · ' + escapeHtml((m.title || '').slice(0, 16));
+    $('aiModalTitle').innerHTML = '<span class="ico" data-ico="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span> ' + ((P.actions && P.actions.diagnosis) || 'AI 诊断') + ' · ' + escapeHtml((m.title || '').slice(0, 16));
     $('aiModal').style.display = 'flex';
 
-    if (!aiConfig.apiKey || !aiConfig.baseURL || !aiConfig.model) {
-        renderDiagnosisBody({ type: 'no-config' });
-    } else {
-        runAIDiagnosis();
-    }
+    // 未配置 API Key 时不拦截：用内置示例把流程走完（结果会标注"示例"）
+    runAIDiagnosis();
 }
 
 function buildDiagnosisPrompt(m) {
@@ -3723,10 +3744,11 @@ async function runAIDiagnosis() {
     const minLoading = new Promise(r => setTimeout(r, 800));
     try {
         const prompt = buildDiagnosisPrompt(aiDiagnoseMistake);
-        const [content] = await Promise.all([callLLM(prompt), minLoading]);
+        const [content] = await Promise.all([callLLM(prompt, 'diagnosis'), minLoading]);
         const result = parseDiagnosisJSON(content, aiDiagnoseMistake);
         aiDiagResult = result;
         renderDiagnosisBody({ type: 'success', result });
+        markDemoResult();
     } catch (e) {
         await minLoading;
         console.error('AI 诊断失败:', e);

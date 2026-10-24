@@ -4204,3 +4204,81 @@ a .ico,
     white-space: pre-wrap;
     word-break: break-word;
 }
+
+/* ========== 桌面端布局（>=900px） ========== */
+/*
+ * 移动优先：手机上一栏到底；宽屏时把首页拆成两栏（左侧任务与概览、右侧错题列表），
+ * 并把容器从 480px 放宽到 1120px —— 否则在 1440p 的显示器上就是一个居中的手机模拟器。
+ */
+@media (min-width: 900px) {
+    body {
+        max-width: 1120px;
+    }
+
+    .app-header {
+        padding: 14px 24px;
+        border-radius: 0 0 20px 20px;
+    }
+
+    .app-main {
+        padding: 22px 24px 110px;
+    }
+
+    #pageHome {
+        display: flex;
+        align-items: flex-start;
+        gap: 22px;
+    }
+
+    .home-side {
+        flex: 0 0 352px;
+        position: sticky;
+        top: 86px;
+    }
+
+    .home-main {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    /* 底部导航收成一枚居中的药丸，不再贴着屏幕边缘占满整行 */
+    .bottom-nav {
+        max-width: 640px;
+        bottom: 16px;
+        border-radius: 18px;
+        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.16);
+    }
+
+    /* 悬浮按钮贴着内容区右侧，而不是屏幕右缘 */
+    .fab-btn {
+        right: max(20px, calc(50vw - 560px + 20px));
+        bottom: 110px;
+    }
+
+    /* 两栏：卡片列表在宽屏下铺成两列 */
+    .knowledge-list,
+    .practice-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    /* 详情页正文控制在可读宽度 */
+    #detailContainer {
+        max-width: 820px;
+    }
+}
+
+/* 未配置 API Key 时，AI 结果顶部的"示例"提示 */
+.demo-banner {
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px dashed #f0a020;
+    background: rgba(255, 149, 0, 0.08);
+    color: var(--text);
+    font-size: 12.5px;
+    line-height: 1.6;
+}
+
+.demo-banner b { color: #c77700; margin-right: 4px; }

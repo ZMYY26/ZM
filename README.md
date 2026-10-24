@@ -75,8 +75,19 @@ tests/              ← jsdom 场景测试 + 内存版 Supabase
 3. **自检**：`node scripts/check.mjs`（语法 / 路径 / SRI / 版本号 / 离线清单）。
 4. **测试**：`npm i -D jsdom fake-indexeddb` 后 `node tests/sync-test.mjs`。
 
+## 桌面端 / 落地页 / 免 Key 体验
+
+- **桌面端**：`@media (min-width: 900px)` 起容器放宽到 1120px，首页拆成两栏
+  （左侧任务与概览、右侧记录列表），底部导航收成药丸。手机端布局不受影响。
+- **落地页**：[landing.html](landing.html)，给外部流量看的介绍页，CTA 指向 `index.html`。
+  分享时就发这个地址：`https://zmyy26.github.io/ZM/landing.html`
+- **免 Key 体验**：没有配置 API Key 时，AI 追问 / 面试官点评会用 `product.js` 里的
+  `demo` 示例结果把流程走完，并在顶部明确标注「示例结果」。这样用户不必先搞懂
+  API Key 就能体验一次完整价值。
+
 ## 已知遗留
 
 - `app.js` 仍是单体脚本，内联 `onclick` 让 CSP 无法启用
-- 桌面端还没做响应式（固定 480px 列宽）
-- 详情页悬浮的 + 按钮会遮挡内容
+- 详情页悬浮的 + 按钮在小屏上仍可能遮挡内容
+- 「待复习」计数：首页统计只算今天，导航徽章算今天+明天，两个口径需统一
+
