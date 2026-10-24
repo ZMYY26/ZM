@@ -333,7 +333,7 @@ function renderMarkdown(text) {
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         // 仅 HTTPS 或 localhost 生效
-        navigator.serviceWorker.register('./sw.js?v=11').catch((err) => {
+        navigator.serviceWorker.register('./sw.js?v=12').catch((err) => {
             console.warn('Service Worker 注册失败:', err);
         });
     }
@@ -3390,7 +3390,7 @@ function markDemoResult() {
     banner.innerHTML =
         '<div><b>示例结果</b> 这是内置的演示内容，用来让你先看完流程。' +
         '填上自己的 API Key，就会按你这条记录真实生成。</div>' +
-        '<button class="demo-cta" onclick="trackEvent(\'ai_demo_cta\');openAISettings()">填上 Key，生成针对我这条记录的' + escapeHtml(cta) + ' →</button>';
+        '<button class="demo-cta" onclick="trackEvent(\'ai_demo_cta\');openAISettings()">填上 Key，生成针对我这条记录的 ' + escapeHtml(cta) + ' →</button>';
     body.insertBefore(banner, body.firstChild);
 }
 

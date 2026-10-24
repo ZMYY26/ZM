@@ -7,27 +7,27 @@
  *  - 静态资源：stale-while-revalidate —— 立刻用缓存渲染，同时后台拉新版本写入下次。
  *  - 跨域请求：不拦截。
  * ======================================== */
-const CACHE_NAME = 'code-mistake-book-v11';
+const CACHE_NAME = 'code-mistake-book-v12';
 
 // 预缓存的核心资源（版本号变了一起变，见 index.html 里的 ?v=）
 const CORE_ASSETS = [
     './',
     './index.html',
-    './style.css?v=11',
-    './app.js?v=11',
-    './image-store.js?v=11',
-    './product.js?v=11',
-    './cloud-config.js?v=11',
-    './account.js?v=11',
-    './cloud-sync.js?v=11',
-    './practice-data.js?v=11',
-    './knowledge-data.js?v=11',
+    './style.css?v=12',
+    './app.js?v=12',
+    './image-store.js?v=12',
+    './product.js?v=12',
+    './cloud-config.js?v=12',
+    './account.js?v=12',
+    './cloud-sync.js?v=12',
+    './practice-data.js?v=12',
+    './knowledge-data.js?v=12',
     './manifest.webmanifest',
     './assets/icon-192.png',
     './assets/icon-512.png',
     './assets/icon-maskable-512.png',
-    './vendor/highlight/highlight.min.js?v=11',
-    './vendor/highlight/atom-one-light.min.css?v=11'
+    './vendor/highlight/highlight.min.js?v=12',
+    './vendor/highlight/atom-one-light.min.css?v=12'
 ];
 
 // 安装：预缓存核心资源。单个资源失败不再让整次安装放弃缓存。
