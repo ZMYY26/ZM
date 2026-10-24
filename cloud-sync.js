@@ -16,7 +16,8 @@
 (function (window) {
     'use strict';
 
-    const META_KEY = 'code_cloud_meta_v1';
+    const NS = ((window.PRODUCT && window.PRODUCT.id) || 'app') + '::';
+    const META_KEY = NS + 'code_cloud_meta_v1';
     const PUSH_DEBOUNCE_MS = 2500;
     const PULL_LIMIT = 500;
     const PUSH_BATCH = 50;

@@ -4316,3 +4316,18 @@ a .ico,
 }
 
 .demo-cta:active { opacity: .85; }
+
+/* 页头账号按钮：已登录时右上角一个小绿点 */
+.icon-btn.has-account { position: relative; }
+
+.icon-btn.has-account::after {
+    content: "";
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #34c759;
+    box-shadow: 0 0 0 2px var(--primary);
+}

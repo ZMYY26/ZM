@@ -16,7 +16,8 @@
 (function (global) {
     'use strict';
 
-    const DB_NAME = 'code_mistake_book';
+    // 库名带上产品 id：否则两个变体共用同一个库，prune 会把对方的图片删掉
+    const DB_NAME = 'code_mistake_book_' + (((window.PRODUCT && window.PRODUCT.id) || 'app').replace(/[^a-z0-9_]/gi, ''));
     const DB_VERSION = 1;
     const STORE = 'images';
 

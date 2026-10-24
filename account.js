@@ -14,7 +14,8 @@
 (function (window) {
     'use strict';
 
-    const SESSION_KEY = 'code_cloud_session_v1';
+    const NS = ((window.PRODUCT && window.PRODUCT.id) || 'app') + '::';
+    const SESSION_KEY = NS + 'code_cloud_session_v1';
     const REFRESH_SKEW_MS = 60 * 1000;   // 提前一分钟续期，避免边界上刚好过期
 
     let session = null;

@@ -2,12 +2,37 @@
  * 代码错题集小程序 - 核心逻辑
  * ======================================== */
 
+// 产品变体层：A/B 两个版本只有 product.js 不同，引擎代码完全一致
+const P = window.PRODUCT || {};
+const FEATURES = P.features || {};
+// 存储命名空间：同一个域名下可能同时托管多个变体（A 在 /ZM、B 在 /weakspot），
+// localStorage 和 IndexedDB 都是按域名隔离的，不分开就会互相串数据。
+const PRODUCT_SLUG = P.id || 'app';
+const STORE_NS = PRODUCT_SLUG + '::';
+
+/** 给存储键加产品前缀 */
+function storeKey(name) {
+    return STORE_NS + name;
+}
+
+/** 老版本用的无前缀键：首次运行时把数据搬到新键下，避免用户"数据丢失" */
+function adoptLegacyKeys(names) {
+    names.forEach(function (name) {
+        try {
+            const legacy = localStorage.getItem(name);
+            if (legacy !== null && localStorage.getItem(storeKey(name)) === null) {
+                localStorage.setItem(storeKey(name), legacy);
+            }
+        } catch (e) { /* ignore */ }
+    });
+}
+
 // ========== 全局状态 ==========
-const STORAGE_KEY = 'code_mistake_book_v1';
+const STORAGE_KEY = storeKey('code_mistake_book_v1');
 const REVIEW_INTERVALS = [1, 2, 4, 7, 15, 30]; // 艾宾浩斯复习间隔（天）
 
 /* ========== 自建漏斗（不接第三方，数据只在本机） ========== */
-const FUNNEL_KEY = 'code_funnel_v1';
+const FUNNEL_KEY = storeKey('code_funnel_v1');
 
 const FUNNEL_STEPS = [
     { key: 'landing_view', label: '落地页浏览' },
@@ -68,10 +93,6 @@ function resetFunnel() {
     try { localStorage.removeItem(FUNNEL_KEY); } catch (e) {}
     renderSyncBody();
 }
-
-// 产品变体层：A/B 两个版本只有 product.js 不同，引擎代码完全一致
-const P = window.PRODUCT || {};
-const FEATURES = P.features || {};
 
 let mistakes = [];
 let currentPage = 'pageHome';
@@ -333,7 +354,7 @@ function renderMarkdown(text) {
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         // 仅 HTTPS 或 localhost 生效
-        navigator.serviceWorker.register('./sw.js?v=12').catch((err) => {
+        navigator.serviceWorker.register('./sw.js?v=13').catch((err) => {
             console.warn('Service Worker 注册失败:', err);
         });
     }
@@ -1843,6 +1864,12 @@ function renderTodayTask() {
 function init() {
     // 先套用产品变体（标题 / 导航 / 表单文案）；下面所有逻辑都与变体无关
     applyProductChrome();
+    adoptLegacyKeys([
+        'code_mistake_book_v1', 'code_activity_log_v1', 'code_points_v1',
+        'code_practice_record_v1', 'code_theme_v1', 'code_reminder_v1',
+        'code_achievements_v1', 'code_challenge_stats_v1', 'code_sync_config_v1',
+        'ai_config_v1', 'ai_generated_questions_v1',
+    ]);
     trackEvent('app_open');
 
     // 加载数据
@@ -1870,6 +1897,9 @@ function init() {
 
     // 主题切换
     $('themeToggleBtn').addEventListener('click', toggleTheme);
+
+    // 账号与同步（页头入口）
+    if ($('accountBtn')) $('accountBtn').addEventListener('click', openSyncModal);
 
     // 复习提醒时间修改
     $('reminderTime').addEventListener('change', (e) => {
@@ -2167,7 +2197,7 @@ for (var i = 0; i < 5; i++) {
  * ======================================== */
 
 // ========== 活动日志（统计热力图数据源）==========
-const ACTIVITY_STORAGE_KEY = 'code_activity_log_v1';
+const ACTIVITY_STORAGE_KEY = storeKey('code_activity_log_v1');
 let activityLog = {};   // { 'YYYY-MM-DD': 次数 }
 
 function todayKey(ts) {
@@ -2200,7 +2230,7 @@ function logActivity(ts) {
 /* ========================================
  * 学习积分与等级模块
  * ======================================== */
-const POINTS_KEY = 'code_points_v1';
+const POINTS_KEY = storeKey('code_points_v1');
 
 const LEVELS = [
     { level: 1, name: '青铜学徒', min: 0,   icon: '<span class="ico" data-ico="medal"><svg viewBox="0 0 24 24"><path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><path d="M11 12 5.12 2.2"/><path d="m13 12 5.88-9.8"/><path d="M8 7h8"/><circle cx="12" cy="17" r="5"/><path d="M12 18v-2h-.01"/></svg></span>', color: '#5e9bd4' },
@@ -2821,7 +2851,7 @@ function showCalDay(day) {
 }
 
 // ========== 练习状态 ==========
-const PRACTICE_STORAGE_KEY = 'code_practice_record_v1';
+const PRACTICE_STORAGE_KEY = storeKey('code_practice_record_v1');
 let practiceActiveCategory = '';
 let practiceRecords = {};      // { q01: { done: true, correct: true, lastAt: ts, count: n } }
 let currentPracticeQuestion = null;
@@ -3144,8 +3174,8 @@ function jumpToPracticeQuestion(qid) {
  * ======================================== */
 
 // ========== AI 配置与状态 ==========
-const AI_CONFIG_KEY = 'ai_config_v1';
-const AI_QUESTIONS_KEY = 'ai_generated_questions_v1';
+const AI_CONFIG_KEY = storeKey('ai_config_v1');
+const AI_QUESTIONS_KEY = storeKey('ai_generated_questions_v1');
 
 let aiConfig = { baseURL: '', apiKey: '', model: '', count: 3 };
 let aiCurrentMistake = null;        // 当前作为出题依据的错题
@@ -4693,7 +4723,7 @@ async function runPython(code) {
 /* ========================================
  * #14 暗黑模式 / 主题切换
  * ======================================== */
-const THEME_KEY = 'code_theme_v1';
+const THEME_KEY = storeKey('code_theme_v1');
 
 function applyTheme(theme) {
     const sun = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>';
@@ -4735,7 +4765,7 @@ function toggleTheme() {
 /* ========================================
  * #7 复习提醒（本机通知）
  * ======================================== */
-const REMIND_KEY = 'code_reminder_v1';
+const REMIND_KEY = storeKey('code_reminder_v1');
 let remindConfig = { enabled: false, time: '20:00', lastNotifiedDate: '' };
 
 function loadRemindConfig() {
@@ -4857,7 +4887,7 @@ function sendTestReminder() {
 /* ========================================
  * #9 成就 / 勋章系统
  * ======================================== */
-const ACH_KEY = 'code_achievements_v1';
+const ACH_KEY = storeKey('code_achievements_v1');
 
 const ACHIEVEMENTS = [
     { id: 'first_mistake', icon: '<span class="ico" data-ico="sprout"><svg viewBox="0 0 24 24"><path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/></svg></span>', name: '初来乍到', desc: '记录第 1 道错题', check: c => c.total >= 1 },
@@ -4947,7 +4977,7 @@ function renderAchievements() {
 /* ========================================
  * #5 随机抽考挑战
  * ======================================== */
-const CHALLENGE_KEY = 'code_challenge_stats_v1';
+const CHALLENGE_KEY = storeKey('code_challenge_stats_v1');
 let challengeStats = { best: 0, last: -1, count: 0 };
 let challengeState = null;   // { questions, idx, score, chosen }
 
@@ -5412,8 +5442,10 @@ function initCloud() {
     account.init();
     account.onChange((session) => {
         renderAccountState();
+        syncAccountButton();
         if (session) cloudSync.syncNow('login');
     });
+    syncAccountButton();
     cloudSync.start();
 }
 
@@ -5524,6 +5556,15 @@ function renderAccountBlock() {
     `;
 }
 
+/** 页头账号按钮：显示登录态（已登录时右上角一个小绿点） */
+function syncAccountButton() {
+    const btn = $('accountBtn');
+    if (!btn) return;
+    const s = (typeof account !== 'undefined' && account.session) ? account.session() : null;
+    const email = s && s.user && s.user.email;
+    btn.title = email ? ('已登录：' + email) : '账号与同步';
+    btn.classList.toggle('has-account', !!email);
+}
 function renderAccountState() {
     const slot = $('cloudAccountSlot');
     if (slot) slot.innerHTML = renderAccountBlock();
@@ -5586,7 +5627,7 @@ async function cloudAdoptLocal() {
 /* ========================================
  * #1 错题云同步（GitHub Gist）—— 保留作旧方式
  * ======================================== */
-const SYNC_KEY = 'code_sync_config_v1';
+const SYNC_KEY = storeKey('code_sync_config_v1');
 const SYNC_FILENAME = 'code-mistake-book-backup.json';
 let syncConfig = { token: '', gistId: '', autoSync: false, lastSyncAt: 0, user: '' };
 let autoSyncTimer = null;
