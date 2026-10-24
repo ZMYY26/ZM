@@ -195,5 +195,28 @@
   </div>
 </footer>
 
-</body>
+<script>
+/* 落地页埋点：和应用同源，数据写进同一份 localStorage（code_funnel_v1） */
+(function () {
+  try {
+    var K = 'code_funnel_v1';
+    function t(name) {
+      var all = {};
+      try { all = JSON.parse(localStorage.getItem(K) || '{}'); } catch (e) {}
+      var item = all[name] || { count: 0, first: Date.now(), days: {} };
+      item.count = (item.count || 0) + 1;
+      item.last = Date.now();
+      item.days = item.days || {};
+      var day = new Date().toISOString().slice(0, 10);
+      item.days[day] = (item.days[day] || 0) + 1;
+      all[name] = item;
+      localStorage.setItem(K, JSON.stringify(all));
+    }
+    t('landing_view');
+    document.querySelectorAll('a[href="./index.html"], .nav-cta, .btn-primary').forEach(function (el) {
+      el.addEventListener('click', function () { t('landing_cta_click'); });
+    });
+  } catch (e) {}
+})();
+</script></body>
 </html>

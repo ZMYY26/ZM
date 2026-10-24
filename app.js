@@ -6,6 +6,69 @@
 const STORAGE_KEY = 'code_mistake_book_v1';
 const REVIEW_INTERVALS = [1, 2, 4, 7, 15, 30]; // 艾宾浩斯复习间隔（天）
 
+/* ========== 自建漏斗（不接第三方，数据只在本机） ========== */
+const FUNNEL_KEY = 'code_funnel_v1';
+
+const FUNNEL_STEPS = [
+    { key: 'landing_view', label: '落地页浏览' },
+    { key: 'landing_cta_click', label: '从落地页点进应用' },
+    { key: 'app_open', label: '打开应用' },
+    { key: 'record_saved', label: '保存一条记录' },
+    { key: 'ai_variant_click', label: '点开 AI 追问' },
+    { key: 'ai_demo_shown', label: '看到示例结果' },
+    { key: 'ai_demo_cta', label: '点「填 Key 生成」' },
+    { key: 'ai_real_done', label: '用真实 Key 生成成功' },
+];
+
+/** 记一次事件。失败静默——埋点永远不能影响主流程 */
+function trackEvent(name) {
+    try {
+        const all = JSON.parse(localStorage.getItem(FUNNEL_KEY) || '{}');
+        const day = new Date().toISOString().slice(0, 10);
+        const item = all[name] || { count: 0, first: Date.now(), days: {} };
+        item.count = (item.count || 0) + 1;
+        item.last = Date.now();
+        item.days = item.days || {};
+        item.days[day] = (item.days[day] || 0) + 1;
+        all[name] = item;
+        localStorage.setItem(FUNNEL_KEY, JSON.stringify(all));
+    } catch (e) { /* ignore */ }
+}
+
+function getFunnel() {
+    try { return JSON.parse(localStorage.getItem(FUNNEL_KEY) || '{}'); } catch (e) { return {}; }
+}
+
+/** 设置里展示的漏斗表 */
+function renderFunnelBlock() {
+    const data = getFunnel();
+    const total = (data.landing_view && data.landing_view.count) || 0;
+    const rows = FUNNEL_STEPS.map(({ key, label }) => {
+        const n = (data[key] && data[key].count) || 0;
+        const pct = total > 0 ? Math.round(n / total * 100) : 0;
+        return `<tr><td>${escapeHtml(label)}</td><td class="funnel-num">${n}</td><td class="funnel-pct">${total > 0 ? pct + '%' : '-'}</td></tr>`;
+    }).join('');
+
+    return `
+        <details class="funnel-block" style="margin-top:16px">
+            <summary>使用漏斗（本机数据）</summary>
+            <p class="cloud-account-hint" style="margin:10px 0 8px">
+                只记在这台设备的 localStorage 里，不上传任何地方。百分比以"落地页浏览"为分母。
+            </p>
+            <table class="funnel-table">
+                <thead><tr><th>步骤</th><th>次数</th><th>占比</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+            <button class="practice-quiz-btn practice-quiz-btn-secondary" style="margin-top:10px" onclick="resetFunnel()">清空漏斗数据</button>
+        </details>`;
+}
+
+function resetFunnel() {
+    if (!confirm('清空本机的漏斗统计？')) return;
+    try { localStorage.removeItem(FUNNEL_KEY); } catch (e) {}
+    renderSyncBody();
+}
+
 // 产品变体层：A/B 两个版本只有 product.js 不同，引擎代码完全一致
 const P = window.PRODUCT || {};
 const FEATURES = P.features || {};
@@ -270,7 +333,7 @@ function renderMarkdown(text) {
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         // 仅 HTTPS 或 localhost 生效
-        navigator.serviceWorker.register('./sw.js?v=10').catch((err) => {
+        navigator.serviceWorker.register('./sw.js?v=11').catch((err) => {
             console.warn('Service Worker 注册失败:', err);
         });
     }
@@ -942,6 +1005,7 @@ async function handleFormSubmit(event) {
         addPoints(10, '记录新错题');
         checkAchievements(true);
         showToast('添加成功');
+        trackEvent('record_saved');
     }
 
     // 换了图或删了图，旧的那张就没用了
@@ -1779,6 +1843,7 @@ function renderTodayTask() {
 function init() {
     // 先套用产品变体（标题 / 导航 / 表单文案）；下面所有逻辑都与变体无关
     applyProductChrome();
+    trackEvent('app_open');
 
     // 加载数据
     loadData();
@@ -3129,6 +3194,7 @@ function openAIModal(mistakeId) {
     aiGeneratedQuestions = [];
     aiAnswerState = {};
 
+    trackEvent('ai_variant_click');
     $('aiModalTitle').innerHTML = '<span class="ico" data-ico="bot"><svg viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></span> ' + ((P.actions && P.actions.variant) || 'AI 举一反三') + ' · ' + escapeHtml((m.title || '').slice(0, 16));
     $('aiModal').style.display = 'flex';
 
@@ -3319,7 +3385,12 @@ function markDemoResult() {
     if (!body || body.querySelector('.demo-banner')) return;
     const banner = document.createElement('div');
     banner.className = 'demo-banner';
-    banner.innerHTML = '<b>示例结果</b> 这是内置的演示内容，用来让你先看完整体流程。在「设置 → AI 配置」里填上自己的 API Key，就会按你的记录真实生成了。';
+    trackEvent('ai_demo_shown');
+    const cta = (P.actions && P.actions.variant) || 'AI 追问';
+    banner.innerHTML =
+        '<div><b>示例结果</b> 这是内置的演示内容，用来让你先看完流程。' +
+        '填上自己的 API Key，就会按你这条记录真实生成。</div>' +
+        '<button class="demo-cta" onclick="trackEvent(\'ai_demo_cta\');openAISettings()">填上 Key，生成针对我这条记录的' + escapeHtml(cta) + ' →</button>';
     body.insertBefore(banner, body.firstChild);
 }
 
@@ -3431,6 +3502,7 @@ async function generateAIQuestions() {
         questions.forEach(q => { aiAnswerState[q.id] = { selected: -1, answered: false }; });
         renderAIBody({ type: 'success', questions });
         markDemoResult();
+        if (llmConfigured()) trackEvent('ai_real_done');
     } catch (e) {
         await minLoading;
         console.error('AI 出题失败:', e);
@@ -3681,6 +3753,7 @@ function openAIDiagnosis(mistakeId) {
     aiDiagnoseMistake = m;
     aiDiagResult = null;
 
+    trackEvent('ai_diagnosis_click');
     $('aiModalTitle').innerHTML = '<span class="ico" data-ico="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span> ' + ((P.actions && P.actions.diagnosis) || 'AI 诊断') + ' · ' + escapeHtml((m.title || '').slice(0, 16));
     $('aiModal').style.display = 'flex';
 
@@ -5567,6 +5640,7 @@ function renderSyncBody(statusHtml = '') {
         <button class="practice-quiz-btn practice-quiz-btn-secondary" onclick="saveSyncInputs(); syncPull(true)"><span class="ico" data-ico="recycle"><svg viewBox="0 0 24 24"><path d="M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5"/><path d="M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12"/><path d="m14 16-3 3 3 3"/><path d="M8.293 13.596 7.196 9.5 3.1 10.598"/><path d="m9.344 5.811 1.093-1.892A1.83 1.83 0 0 1 11.985 3a1.784 1.784 0 0 1 1.546.888l3.943 6.843"/><path d="m13.378 9.633 4.096 1.098 1.097-4.096"/></svg></span>️ 云端覆盖本地</button>
         <div style="font-size:12px;color:var(--text-secondary)">${lastText}</div>
         </details>
+        ${renderFunnelBlock()}
     `;
 }
 

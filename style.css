@@ -4282,3 +4282,37 @@ a .ico,
 }
 
 .demo-banner b { color: #c77700; margin-right: 4px; }
+
+/* 自建漏斗表格 + 示例结果里的转化按钮 */
+.funnel-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.funnel-table th,
+.funnel-table td {
+    padding: 7px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.funnel-table th { color: var(--text-secondary); font-weight: 600; font-size: 12px; }
+.funnel-num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+.funnel-pct { text-align: right; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+.demo-cta {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 10px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.demo-cta:active { opacity: .85; }
