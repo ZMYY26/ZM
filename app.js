@@ -270,7 +270,7 @@ function renderMarkdown(text) {
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         // 仅 HTTPS 或 localhost 生效
-        navigator.serviceWorker.register('./sw.js?v=7').catch((err) => {
+        navigator.serviceWorker.register('./sw.js?v=9').catch((err) => {
             console.warn('Service Worker 注册失败:', err);
         });
     }
@@ -2317,6 +2317,20 @@ function renderStreak() {
                 </div>
                 <div class="streak-progress-track">
                     <div class="streak-progress-fill" style="width:${pct}%;background:${next.color}"></div>
+                </div>
+            </div>
+        `;
+    } else if (!current) {
+        // 还没够到第一枚徽章：这里以前会错误地显示"已达成最高徽章"
+        const first = STREAK_BADGES[0];
+        const pctFirst = Math.round(Math.min(streak, first.days) / first.days * 100);
+        progressHtml = `
+            <div class="streak-progress-wrap">
+                <div class="streak-progress-label">
+                    <span>距「${first.icon} ${first.name}」还需 ${first.days - streak} 天</span>
+                </div>
+                <div class="streak-progress-track">
+                    <div class="streak-progress-fill" style="width:${pctFirst}%;background:${first.color}"></div>
                 </div>
             </div>
         `;
